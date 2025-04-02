@@ -1,10 +1,12 @@
-// src/app/professors/page.tsx
 'use client';
 
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Professor, Country, Scholarship } from '@/types';
-import ProfessorForm from './components/ProfessorForm';
-import ProfessorList from './components/ProfessorList';
+import { Plus } from 'lucide-react';
+import ProfessorListView from './components/ProfessorListView';
+import ProfessorFormModal, { ProfessorFormData } from './components/ProfessorFormModal';
+import DeleteConfirmationModal from './components/DeleteConfirmationModal';
 
 // Dummy data for countries and scholarships
 const DUMMY_COUNTRIES: Country[] = [
@@ -29,7 +31,8 @@ const DUMMY_PROFESSORS: Professor[] = [
     country: 'United States',
     scholarship: 'Research Grant 2024',
     emailScreenshot: '/dummy-screenshot.png',
-    proposalPdf: '/dummy-proposal.pdf'
+    proposalPdf: '/dummy-proposal.pdf',
+    createdAt: '2023-11-15'
   },
   {
     id: '2',
@@ -38,72 +41,147 @@ const DUMMY_PROFESSORS: Professor[] = [
     country: 'United Kingdom',
     scholarship: 'Postdoctoral Fellowship',
     emailScreenshot: '/dummy-screenshot-2.png',
-    proposalPdf: '/dummy-proposal-2.pdf'
+    proposalPdf: '/dummy-proposal-2.pdf',
+    createdAt: '2023-12-10'
+  },
+  {
+    id: '3',
+    name: 'Dr. Michael Chen',
+    email: 'mchen@utoronto.ca',
+    country: 'Canada',
+    scholarship: 'Graduate Research Scholarship',
+    emailScreenshot: '/dummy-screenshot-3.png',
+    proposalPdf: '/dummy-proposal-3.pdf',
+    createdAt: '2024-01-05'
+  },
+  {
+    id: '4',
+    name: 'Dr. Sarah Johnson',
+    email: 'sjohnson@sydney.edu.au',
+    country: 'Australia',
+    scholarship: null,
+    emailScreenshot: '/dummy-screenshot-4.png',
+    proposalPdf: '/dummy-proposal-4.pdf',
+    createdAt: '2024-02-20'
   }
 ];
 
 export default function ProfessorsPage() {
   const [professors, setProfessors] = useState<Professor[]>(DUMMY_PROFESSORS);
-  const [editingProfessor, setEditingProfessor] = useState<Professor | null>(null);
-
-  const handleAddProfessor = (newProfessor: Professor) => {
-    if (editingProfessor) {
-      // Update existing professor
-      setProfessors(prev => 
-        prev.map(prof => 
-          prof.id === editingProfessor.id 
-            ? { ...newProfessor, id: editingProfessor.id } 
-            : prof
-        )
-      );
-      setEditingProfessor(null);
-    } else {
-      // Add new professor
-      const professorWithId = {
-        ...newProfessor,
-        id: `${professors.length + 1}`
-      };
-      setProfessors(prev => [...prev, professorWithId]);
-    }
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [currentProfessor, setCurrentProfessor] = useState<Professor | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  
+  const handleAddNewProfessor = () => {
+    setCurrentProfessor(null);
+    setIsFormOpen(true);
   };
 
   const handleEditProfessor = (professor: Professor) => {
-    setEditingProfessor(professor);
+    setCurrentProfessor(professor);
+    setIsFormOpen(true);
   };
 
-  const handleDeleteProfessor = (professorId: string) => {
-    setProfessors(prev => prev.filter(prof => prof.id !== professorId));
+  const handleDeleteClick = (professorId: string) => {
+    setConfirmDeleteId(professorId);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (confirmDeleteId) {
+      setProfessors(professors.filter(prof => prof.id !== confirmDeleteId));
+      setConfirmDeleteId(null);
+    }
+  };
+
+  const handleFormSubmit = (formData: ProfessorFormData) => {
+    // Prepare file paths (in a real app this would upload the files)
+    const emailScreenshotPath = formData.emailScreenshot 
+      ? `/uploads/${formData.emailScreenshot.name}` 
+      : formData.currentEmailScreenshot;
+
+    const proposalPdfPath = formData.proposalPdf
+      ? `/uploads/${formData.proposalPdf.name}`
+      : formData.currentProposalPdf;
+    
+    if (currentProfessor) {
+      // Update existing professor
+      setProfessors(professors.map(prof => 
+        prof.id === currentProfessor.id ? 
+        {
+          ...prof,
+          name: formData.name,
+          email: formData.email,
+          country: formData.country,
+          scholarship: formData.scholarship || null,
+          emailScreenshot: emailScreenshotPath,
+          proposalPdf: proposalPdfPath,
+          createdAt: formData.createdAt
+        } : prof
+      ));
+    } else {
+      // Add new professor
+      const newProfessor: Professor = {
+        id: String(Date.now()),
+        name: formData.name,
+        email: formData.email,
+        country: formData.country,
+        scholarship: formData.scholarship || null,
+        emailScreenshot: emailScreenshotPath,
+        proposalPdf: proposalPdfPath,
+        createdAt: formData.createdAt
+      };
+      setProfessors([...professors, newProfessor]);
+    }
+    
+    setIsFormOpen(false);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="container mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-blue-900">
-          Professors Management
-        </h1>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Professor Form Column */}
-          <div className="lg:col-span-1">
-            <ProfessorForm 
-              countries={DUMMY_COUNTRIES}
-              scholarships={DUMMY_SCHOLARSHIPS}
-              onSubmit={handleAddProfessor}
-              initialProfessor={editingProfessor}
-              onCancel={() => setEditingProfessor(null)}
-            />
-          </div>
-
-          {/* Professor List Column */}
-          <div className="lg:col-span-2">
-            <ProfessorList 
-              professors={professors}
-              onEdit={handleEditProfessor}
-              onDelete={handleDeleteProfessor}
-            />
-          </div>
-        </div>
+    <div className="py-6">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-neutral-800">Professors</h1>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleAddNewProfessor}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors duration-300"
+        >
+          <Plus size={18} />
+          <span>Add Professor</span>
+        </motion.button>
       </div>
+
+      {/* Professor List */}
+      <ProfessorListView 
+        professors={professors} 
+        onEdit={handleEditProfessor}
+        onDelete={handleDeleteClick}
+      />
+
+      {/* Professor Form Modal */}
+      <AnimatePresence>
+        {isFormOpen && (
+          <ProfessorFormModal
+            isOpen={isFormOpen}
+            onClose={() => setIsFormOpen(false)}
+            onSubmit={handleFormSubmit}
+            professor={currentProfessor}
+            countries={DUMMY_COUNTRIES}
+            scholarships={DUMMY_SCHOLARSHIPS}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {confirmDeleteId && (
+          <DeleteConfirmationModal
+            isOpen={!!confirmDeleteId}
+            onClose={() => setConfirmDeleteId(null)}
+            onConfirm={handleDeleteConfirm}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
