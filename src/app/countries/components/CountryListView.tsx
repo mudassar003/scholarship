@@ -8,6 +8,19 @@ import { getUniversitiesByCountry } from '@/services/universityService';
 import { getScholarshipsByCountry } from '@/services/scholarshipService';
 import { ChevronDown, ChevronUp, Edit2, Trash2, Building, GraduationCap, Flag } from 'lucide-react';
 
+// Define more specific types for universities and scholarships
+interface University {
+  id: string;
+  name: string;
+  city?: string;
+}
+
+interface Scholarship {
+  id: string;
+  name: string;
+  deadline?: string;
+}
+
 interface CountryListViewProps {
   countries: Country[];
   onEdit: (country: Country) => void;
@@ -16,8 +29,8 @@ interface CountryListViewProps {
 
 const CountryListView: React.FC<CountryListViewProps> = ({ countries, onEdit, onDelete }) => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [universities, setUniversities] = useState<Record<string, any[]>>({});
-  const [scholarships, setScholarships] = useState<Record<string, any[]>>({});
+  const [universities, setUniversities] = useState<Record<string, University[]>>({});
+  const [scholarships, setScholarships] = useState<Record<string, Scholarship[]>>({});
   const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
 
   const toggleExpandRow = async (id: string, countryName: string) => {
@@ -35,7 +48,7 @@ const CountryListView: React.FC<CountryListViewProps> = ({ countries, onEdit, on
       return;
     }
     
-    setLoadingData({...loadingData, [id]: true});
+    setLoadingData(prev => ({...prev, [id]: true}));
     
     try {
       // Fetch related data for the country
@@ -44,12 +57,12 @@ const CountryListView: React.FC<CountryListViewProps> = ({ countries, onEdit, on
         getScholarshipsByCountry(countryName)
       ]);
       
-      setUniversities({...universities, [id]: univData});
-      setScholarships({...scholarships, [id]: scholarData});
+      setUniversities(prev => ({...prev, [id]: univData}));
+      setScholarships(prev => ({...prev, [id]: scholarData}));
     } catch (error) {
       console.error('Error fetching data for country:', error);
     } finally {
-      setLoadingData({...loadingData, [id]: false});
+      setLoadingData(prev => ({...prev, [id]: false}));
     }
   };
 
