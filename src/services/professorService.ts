@@ -37,7 +37,6 @@ export const createProfessor = async (
   proposalPdf?: File | null
 ): Promise<Professor | null> => {
   try {
-    // Skip file uploads for testing if files aren't provided
     // Prepare the data to insert - only the essential fields
     const professorData: any = {
       name: professor.name,
@@ -63,8 +62,20 @@ export const createProfessor = async (
       professorData.notification_enabled = professor.notification_enabled;
     }
     
-    // Skip file upload operations - only try to add file data if there are actual files
-    // This avoids issues with storage buckets that might not exist
+    // Upload files if available
+    if (emailScreenshot) {
+      const emailScreenshotUrl = await uploadFile('professors', 'email_screenshots', emailScreenshot);
+      if (emailScreenshotUrl) {
+        professorData.email_screenshot = { url: emailScreenshotUrl };
+      }
+    }
+    
+    if (proposalPdf) {
+      const proposalPdfUrl = await uploadFile('professors', 'proposals', proposalPdf);
+      if (proposalPdfUrl) {
+        professorData.proposal = { url: proposalPdfUrl };
+      }
+    }
     
     console.log('Creating professor with data:', professorData);
 
@@ -103,7 +114,30 @@ export const updateProfessor = async (
 
     const updateData: any = { ...updates };
 
-    // Skip file upload operations for testing
+    // Upload new files if provided
+    if (emailScreenshot) {
+      // Delete old file if exists
+      if (currentProfessor.email_screenshot?.url) {
+        await deleteFile('professors', currentProfessor.email_screenshot.url);
+      }
+      
+      const emailScreenshotUrl = await uploadFile('professors', 'email_screenshots', emailScreenshot);
+      if (emailScreenshotUrl) {
+        updateData.email_screenshot = { url: emailScreenshotUrl };
+      }
+    }
+    
+    if (proposalPdf) {
+      // Delete old file if exists
+      if (currentProfessor.proposal?.url) {
+        await deleteFile('professors', currentProfessor.proposal.url);
+      }
+      
+      const proposalPdfUrl = await uploadFile('professors', 'proposals', proposalPdf);
+      if (proposalPdfUrl) {
+        updateData.proposal = { url: proposalPdfUrl };
+      }
+    }
     
     // Update professor record
     const { data, error } = await supabase
@@ -127,7 +161,21 @@ export const updateProfessor = async (
 
 export const deleteProfessor = async (id: string): Promise<boolean> => {
   try {
-    // Delete professor record without dealing with files for testing
+    // Get professor details to delete associated files
+    const professor = await getProfessorById(id);
+    
+    if (professor) {
+      // Delete associated files if they exist
+      if (professor.email_screenshot?.url) {
+        await deleteFile('professors', professor.email_screenshot.url);
+      }
+      
+      if (professor.proposal?.url) {
+        await deleteFile('professors', professor.proposal.url);
+      }
+    }
+    
+    // Delete professor record
     const { error } = await supabase
       .from('professors')
       .delete()

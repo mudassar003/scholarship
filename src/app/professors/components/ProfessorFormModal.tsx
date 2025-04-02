@@ -42,6 +42,10 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
   const emailScreenshotRef = useRef<HTMLInputElement>(null);
   const proposalPdfRef = useRef<HTMLInputElement>(null);
   
+  // Preview states
+  const [emailScreenshotPreview, setEmailScreenshotPreview] = useState<string | null>(null);
+  const [proposalPdfPreview, setProposalPdfPreview] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState<ProfessorFormData>({
     name: '',
     email: '',
@@ -73,6 +77,15 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
         emailScreenshot: null,
         proposalPdf: null,
       });
+      
+      // Set preview URLs if files exist
+      if (professor.email_screenshot?.url) {
+        setEmailScreenshotPreview(professor.email_screenshot.url);
+      }
+      
+      if (professor.proposal?.url) {
+        setProposalPdfPreview(professor.proposal.url);
+      }
     } else {
       // Reset form for new professor
       setFormData({
@@ -89,21 +102,55 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
         emailScreenshot: null,
         proposalPdf: null,
       });
+      
+      // Clear previews
+      setEmailScreenshotPreview(null);
+      setProposalPdfPreview(null);
     }
   }, [professor, isOpen]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'emailScreenshot' | 'proposalPdf') => {
     if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
       setFormData({
         ...formData,
-        [field]: e.target.files[0]
+        [field]: file
       });
+      
+      // Create and set preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (field === 'emailScreenshot') {
+          setEmailScreenshotPreview(reader.result as string);
+        } else {
+          setProposalPdfPreview(reader.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
+  };
+
+  const viewPreview = (previewUrl: string | null) => {
+    if (previewUrl) {
+      // If it's a data URL (local preview), we can't open it in a new tab
+      if (previewUrl.startsWith('data:')) {
+        // Create a temporary anchor element
+        const a = document.createElement('a');
+        a.href = previewUrl;
+        a.target = '_blank';
+        a.download = 'preview';
+        a.click();
+      } else {
+        // Regular URL, open in new tab
+        window.open(previewUrl, '_blank');
+      }
+    }
   };
 
   if (!isOpen) return null;
@@ -206,7 +253,9 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
             >
               <option value="">Select a country</option>
               {countries.map(country => (
-                <option key={country.id} value={country.name}>{country.name}</option>
+                <option key={country.id} value={country.name}>
+                  {country.flag ? `${country.flag} ` : ''}{country.name}
+                </option>
               ))}
             </select>
           </div>
@@ -291,7 +340,7 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
               <label htmlFor="emailScreenshot" className="block text-sm font-medium text-neutral-700 mb-1">
                 Email Screenshot
               </label>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 mb-2">
                 <button
                   type="button"
                   onClick={() => emailScreenshotRef.current?.click()}
@@ -300,14 +349,25 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
                   <Upload size={16} />
                   Choose File
                 </button>
-                <span className="text-sm text-neutral-500 truncate">
+                <span className="text-sm text-neutral-500 truncate flex-1">
                   {formData.emailScreenshot 
                     ? formData.emailScreenshot.name 
-                    : professor?.email_screenshot?.url 
-                      ? professor.email_screenshot.url.split('/').pop() 
+                    : emailScreenshotPreview
+                      ? "Current file: " + (professor?.email_screenshot?.url || "").split('/').pop()
                       : 'No file chosen'}
                 </span>
               </div>
+              {emailScreenshotPreview && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => viewPreview(emailScreenshotPreview)}
+                    className="text-indigo-600 hover:text-indigo-800 hover:underline text-sm"
+                  >
+                    View Current Screenshot
+                  </button>
+                </div>
+              )}
               <input
                 ref={emailScreenshotRef}
                 type="file"
@@ -323,7 +383,7 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
               <label htmlFor="proposalPdf" className="block text-sm font-medium text-neutral-700 mb-1">
                 Proposal PDF
               </label>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 mb-2">
                 <button
                   type="button"
                   onClick={() => proposalPdfRef.current?.click()}
@@ -332,14 +392,25 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
                   <Upload size={16} />
                   Choose File
                 </button>
-                <span className="text-sm text-neutral-500 truncate">
+                <span className="text-sm text-neutral-500 truncate flex-1">
                   {formData.proposalPdf 
                     ? formData.proposalPdf.name 
-                    : professor?.proposal?.url
-                      ? professor.proposal.url.split('/').pop()
+                    : proposalPdfPreview
+                      ? "Current file: " + (professor?.proposal?.url || "").split('/').pop()
                       : 'No file chosen'}
                 </span>
               </div>
+              {proposalPdfPreview && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => viewPreview(proposalPdfPreview)}
+                    className="text-indigo-600 hover:text-indigo-800 hover:underline text-sm"
+                  >
+                    View Current Proposal
+                  </button>
+                </div>
+              )}
               <input
                 ref={proposalPdfRef}
                 type="file"

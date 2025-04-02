@@ -12,6 +12,7 @@ interface ActionButtonProps {
   variant?: 'primary' | 'danger' | 'success' | 'neutral';
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
+  disabled?: boolean;
 }
 
 const ActionButton: React.FC<ActionButtonProps> = ({
@@ -21,6 +22,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({
   variant = 'primary',
   size = 'md',
   showLabel = false,
+  disabled = false,
 }) => {
   // Map variant to colors
   const variantStyles = {
@@ -43,13 +45,19 @@ const ActionButton: React.FC<ActionButtonProps> = ({
     lg: 20
   };
 
+  // Handle disabled state
+  const disabledClass = disabled 
+    ? 'opacity-50 cursor-not-allowed' 
+    : 'transition-colors duration-200';
+
   return (
     <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      className={`${variantStyles[variant]} ${sizeStyles[size]} flex items-center gap-2 transition-colors duration-200`}
+      whileHover={disabled ? {} : { scale: 1.05 }}
+      whileTap={disabled ? {} : { scale: 0.95 }}
+      onClick={disabled ? undefined : onClick}
+      className={`${variantStyles[variant]} ${sizeStyles[size]} ${disabledClass} flex items-center gap-2`}
       title={label}
+      disabled={disabled}
     >
       <Icon size={iconSizes[size]} />
       {showLabel && <span className="text-sm font-medium">{label}</span>}

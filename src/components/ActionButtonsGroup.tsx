@@ -26,43 +26,49 @@ const ActionButtonsGroup: React.FC<ActionButtonsGroupProps> = ({
     ? 'flex space-x-2' 
     : 'grid grid-cols-2 gap-2';
 
+  // Important: Create no-op functions for undefined handlers to avoid errors
+  const handleEdit = onEdit || (() => {});
+  const handleDelete = onDelete || (() => {});
+  const handleViewEmail = onViewEmail || (() => {});
+  const handleViewProposal = onViewProposal || (() => {});
+
   return (
     <div className={containerClass}>
-      {onEdit && (
+      {onEdit !== undefined && (
         <ActionButton
           icon={Edit2}
           label="Edit"
-          onClick={onEdit}
+          onClick={handleEdit}
           variant="primary"
           size={size}
         />
       )}
       
-      {onDelete && (
+      {onDelete !== undefined && (
         <ActionButton
           icon={Trash2}
           label="Delete"
-          onClick={onDelete}
+          onClick={handleDelete}
           variant="danger"
           size={size}
         />
       )}
 
-      {onViewEmail && (
+      {onViewEmail !== undefined && (
         <ActionButton
           icon={Mail}
           label="View Email"
-          onClick={onViewEmail}
+          onClick={handleViewEmail}
           variant="neutral"
           size={size}
         />
       )}
 
-      {onViewProposal && (
+      {onViewProposal !== undefined && (
         <ActionButton
           icon={FileText}
           label="View Proposal"
-          onClick={onViewProposal}
+          onClick={handleViewProposal}
           variant="success"
           size={size}
         />

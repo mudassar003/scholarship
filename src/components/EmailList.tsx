@@ -3,8 +3,10 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, Edit2 } from 'lucide-react';
 import ActionButtonsGroup from './ActionButtonsGroup';
+import ActionButton from './ActionButton';
+import EmailStatusDropdown from './EmailStatusDropdown';
 
 interface Email {
   id: string;
@@ -13,35 +15,30 @@ interface Email {
   country: string;
   scholarship: string;
   status: string;
-  emailScreenshot: string;
-  proposalPdf: string;
+  emailScreenshot: string | null;
+  proposalPdf: string | null;
 }
 
 interface EmailListProps {
   emails: Email[];
   onEdit?: (email: Email) => void;
   onDelete?: (emailId: string) => void;
+  onViewEmail?: (emailScreenshot: string) => void;
+  onViewProposal?: (proposalPdf: string) => void;
+  onStatusChange?: (emailId: string, newStatus: string) => void;
+  onQuickEdit?: (email: Email) => void;
 }
 
 const EmailList: React.FC<EmailListProps> = ({ 
   emails,
   onEdit,
-  onDelete
+  onDelete,
+  onViewEmail,
+  onViewProposal,
+  onStatusChange,
+  onQuickEdit
 }) => {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Replied': return 'bg-green-100 text-green-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-neutral-100 text-neutral-800';
-    }
-  };
-
-  const handleViewDocument = (documentUrl: string, type: 'screenshot' | 'proposal') => {
-    window.open(documentUrl, '_blank');
-  };
 
   const toggleExpandRow = (id: string) => {
     setExpandedRow(prevId => prevId === id ? null : id);
@@ -89,13 +86,31 @@ const EmailList: React.FC<EmailListProps> = ({
                 <td className="px-6 py-4 text-neutral-600">{email.university}</td>
                 <td className="px-6 py-4 text-neutral-600">{email.country}</td>
                 <td className="px-6 py-4 text-neutral-600">{email.scholarship}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(email.status)}`}>
-                    {email.status}
-                  </span>
+                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                  {onStatusChange ? (
+                    <EmailStatusDropdown 
+                      status={email.status} 
+                      emailId={email.id} 
+                      onStatusChange={onStatusChange} 
+                    />
+                  ) : (
+                    <span className={`px-3 py-1 rounded-full text-xs ${getStatusColor(email.status)}`}>
+                      {email.status}
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex justify-center">
+                  <div className="flex justify-center space-x-2">
+                    {/* Quick Edit button */}
+                    {onQuickEdit && (
+                      <ActionButton
+                        icon={Edit2}
+                        label="Quick Edit"
+                        onClick={() => onQuickEdit(email)}
+                        variant="neutral"
+                        size="sm"
+                      />
+                    )}
                     <ActionButtonsGroup
                       onEdit={onEdit ? () => onEdit(email) : undefined}
                       onDelete={onDelete ? () => onDelete(email.id) : undefined}
@@ -118,23 +133,31 @@ const EmailList: React.FC<EmailListProps> = ({
                       <div className="flex gap-8">
                         <div className="flex-1">
                           <h4 className="font-medium text-neutral-800 mb-2">Email Screenshot</h4>
-                          <ActionButton
-                            icon={Eye}
-                            label="View Email Screenshot"
-                            onClick={() => handleViewDocument(email.emailScreenshot, 'screenshot')}
-                            variant="neutral"
-                            showLabel={true}
-                          />
+                          {email.emailScreenshot ? (
+                            <ActionButton
+                              icon={Eye}
+                              label="View Email Screenshot"
+                              onClick={() => onViewEmail && onViewEmail(email.emailScreenshot!)}
+                              variant="neutral"
+                              showLabel={true}
+                            />
+                          ) : (
+                            <p className="text-neutral-500 text-sm">No email screenshot available</p>
+                          )}
                         </div>
                         <div className="flex-1">
                           <h4 className="font-medium text-neutral-800 mb-2">Proposal Document</h4>
-                          <ActionButton
-                            icon={Eye}
-                            label="View Proposal"
-                            onClick={() => handleViewDocument(email.proposalPdf, 'proposal')}
-                            variant="neutral"
-                            showLabel={true}
-                          />
+                          {email.proposalPdf ? (
+                            <ActionButton
+                              icon={Eye}
+                              label="View Proposal"
+                              onClick={() => onViewProposal && onViewProposal(email.proposalPdf!)}
+                              variant="neutral"
+                              showLabel={true}
+                            />
+                          ) : (
+                            <p className="text-neutral-500 text-sm">No proposal document available</p>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -147,6 +170,19 @@ const EmailList: React.FC<EmailListProps> = ({
       </table>
     </motion.div>
   );
+};
+
+// Helper function
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'Replied': return 'bg-green-100 text-green-800';
+    case 'Pending': return 'bg-yellow-100 text-yellow-800';
+    case 'Rejected': return 'bg-red-100 text-red-800';
+    case 'Follow Up': return 'bg-blue-100 text-blue-800';
+    case 'Scheduled': return 'bg-purple-100 text-purple-800';
+    case 'No Response': return 'bg-orange-100 text-orange-800';
+    default: return 'bg-neutral-100 text-neutral-800';
+  }
 };
 
 export default EmailList;
