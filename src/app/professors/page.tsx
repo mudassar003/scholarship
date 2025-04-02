@@ -84,21 +84,25 @@ export default function ProfessorsPage() {
     
     try {
       if (currentProfessor?.id) {
-        // Update existing professor
+        // Update existing professor (only pass non-empty values)
+        const updateData: any = {
+          name: formData.name,
+          email: formData.email
+        };
+        
+        // Only add fields that have values
+        if (formData.university) updateData.university_name = formData.university;
+        if (formData.country) updateData.country = formData.country;
+        if (formData.department) updateData.department = formData.department;
+        if (formData.status) updateData.status = formData.status;
+        if (formData.notes) updateData.notes = formData.notes;
+        if (formData.emailDate) updateData.email_date = formData.emailDate;
+        if (formData.replyDate) updateData.reply_date = formData.replyDate;
+        if (formData.reminderDate) updateData.reminder_date = formData.reminderDate;
+        
         const updatedProfessor = await updateProfessor(
           currentProfessor.id,
-          {
-            name: formData.name,
-            email: formData.email,
-            university_name: formData.university,
-            country: formData.country,
-            status: formData.status || 'Pending',
-            department: formData.department,
-            notes: formData.notes,
-            email_date: formData.emailDate,
-            reply_date: formData.replyDate,
-            reminder_date: formData.reminderDate
-          },
+          updateData,
           formData.emailScreenshot,
           formData.proposalPdf
         );
@@ -109,20 +113,24 @@ export default function ProfessorsPage() {
           ));
         }
       } else {
-        // Create new professor
+        // Create new professor (only pass non-empty values)
+        const professorData: any = {
+          name: formData.name,
+          email: formData.email
+        };
+        
+        // Only add fields that have values
+        if (formData.university) professorData.university_name = formData.university;
+        if (formData.country) professorData.country = formData.country;
+        if (formData.department) professorData.department = formData.department;
+        if (formData.status) professorData.status = formData.status;
+        if (formData.notes) professorData.notes = formData.notes;
+        if (formData.emailDate) professorData.email_date = formData.emailDate;
+        if (formData.replyDate) professorData.reply_date = formData.replyDate;
+        if (formData.reminderDate) professorData.reminder_date = formData.reminderDate;
+        
         const newProfessor = await createProfessor(
-          {
-            name: formData.name,
-            email: formData.email,
-            university_name: formData.university,
-            country: formData.country,
-            status: formData.status || 'Pending',
-            department: formData.department,
-            notes: formData.notes,
-            email_date: formData.emailDate,
-            reply_date: formData.replyDate,
-            reminder_date: formData.reminderDate
-          },
+          professorData,
           formData.emailScreenshot,
           formData.proposalPdf
         );
