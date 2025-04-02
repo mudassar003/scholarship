@@ -1,77 +1,56 @@
+//src/app/professors/page.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Professor, Country, Scholarship } from '@/types';
 import { Plus } from 'lucide-react';
 import ProfessorListView from './components/ProfessorListView';
 import ProfessorFormModal, { ProfessorFormData } from './components/ProfessorFormModal';
 import DeleteConfirmationModal from './components/DeleteConfirmationModal';
-
-// Dummy data for countries and scholarships
-const DUMMY_COUNTRIES: Country[] = [
-  { id: '1', name: 'United States', code: 'US' },
-  { id: '2', name: 'United Kingdom', code: 'UK' },
-  { id: '3', name: 'Canada', code: 'CA' },
-  { id: '4', name: 'Australia', code: 'AU' }
-];
-
-const DUMMY_SCHOLARSHIPS: Scholarship[] = [
-  { id: '1', name: 'Research Grant 2024', country: 'United States' },
-  { id: '2', name: 'Postdoctoral Fellowship', country: 'United Kingdom' },
-  { id: '3', name: 'Graduate Research Scholarship', country: 'Canada' }
-];
-
-// Dummy initial professors
-const DUMMY_PROFESSORS: Professor[] = [
-  {
-    id: '1',
-    name: 'Dr. John Smith',
-    email: 'john.smith@university.edu',
-    country: 'United States',
-    scholarship: 'Research Grant 2024',
-    emailScreenshot: '/dummy-screenshot.png',
-    proposalPdf: '/dummy-proposal.pdf',
-    createdAt: '2023-11-15'
-  },
-  {
-    id: '2',
-    name: 'Dr. Emma Watson',
-    email: 'emma.watson@oxford.ac.uk',
-    country: 'United Kingdom',
-    scholarship: 'Postdoctoral Fellowship',
-    emailScreenshot: '/dummy-screenshot-2.png',
-    proposalPdf: '/dummy-proposal-2.pdf',
-    createdAt: '2023-12-10'
-  },
-  {
-    id: '3',
-    name: 'Dr. Michael Chen',
-    email: 'mchen@utoronto.ca',
-    country: 'Canada',
-    scholarship: 'Graduate Research Scholarship',
-    emailScreenshot: '/dummy-screenshot-3.png',
-    proposalPdf: '/dummy-proposal-3.pdf',
-    createdAt: '2024-01-05'
-  },
-  {
-    id: '4',
-    name: 'Dr. Sarah Johnson',
-    email: 'sjohnson@sydney.edu.au',
-    country: 'Australia',
-    scholarship: null,
-    emailScreenshot: '/dummy-screenshot-4.png',
-    proposalPdf: '/dummy-proposal-4.pdf',
-    createdAt: '2024-02-20'
-  }
-];
+import { 
+  getProfessors, 
+  createProfessor, 
+  updateProfessor, 
+  deleteProfessor 
+} from '@/services/professorService';
+import { getCountries } from '@/services/countryService';
+import { getScholarships } from '@/services/scholarshipService';
 
 export default function ProfessorsPage() {
-  const [professors, setProfessors] = useState<Professor[]>(DUMMY_PROFESSORS);
+  const [professors, setProfessors] = useState<Professor[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentProfessor, setCurrentProfessor] = useState<Professor | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
+  useEffect(() => {
+    // Fetch data from Supabase when component mounts
+    const fetchData = async () => {
+      setIsLoading(true);
+      
+      try {
+        const [professorsData, countriesData, scholarshipsData] = await Promise.all([
+          getProfessors(),
+          getCountries(),
+          getScholarships()
+        ]);
+        
+        setProfessors(professorsData);
+        setCountries(countriesData);
+        setScholarships(scholarshipsData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
   const handleAddNewProfessor = () => {
     setCurrentProfessor(null);
     setIsFormOpen(true);
@@ -86,54 +65,78 @@ export default function ProfessorsPage() {
     setConfirmDeleteId(professorId);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (confirmDeleteId) {
-      setProfessors(professors.filter(prof => prof.id !== confirmDeleteId));
+      setIsLoading(true);
+      const success = await deleteProfessor(confirmDeleteId);
+      
+      if (success) {
+        setProfessors(professors.filter(prof => prof.id !== confirmDeleteId));
+      }
+      
       setConfirmDeleteId(null);
+      setIsLoading(false);
     }
   };
 
-  const handleFormSubmit = (formData: ProfessorFormData) => {
-    // Prepare file paths (in a real app this would upload the files)
-    const emailScreenshotPath = formData.emailScreenshot 
-      ? `/uploads/${formData.emailScreenshot.name}` 
-      : formData.currentEmailScreenshot;
-
-    const proposalPdfPath = formData.proposalPdf
-      ? `/uploads/${formData.proposalPdf.name}`
-      : formData.currentProposalPdf;
+  const handleFormSubmit = async (formData: ProfessorFormData) => {
+    setIsLoading(true);
     
-    if (currentProfessor) {
-      // Update existing professor
-      setProfessors(professors.map(prof => 
-        prof.id === currentProfessor.id ? 
-        {
-          ...prof,
-          name: formData.name,
-          email: formData.email,
-          country: formData.country,
-          scholarship: formData.scholarship || null,
-          emailScreenshot: emailScreenshotPath,
-          proposalPdf: proposalPdfPath,
-          createdAt: formData.createdAt
-        } : prof
-      ));
-    } else {
-      // Add new professor
-      const newProfessor: Professor = {
-        id: String(Date.now()),
-        name: formData.name,
-        email: formData.email,
-        country: formData.country,
-        scholarship: formData.scholarship || null,
-        emailScreenshot: emailScreenshotPath,
-        proposalPdf: proposalPdfPath,
-        createdAt: formData.createdAt
-      };
-      setProfessors([...professors, newProfessor]);
+    try {
+      if (currentProfessor?.id) {
+        // Update existing professor
+        const updatedProfessor = await updateProfessor(
+          currentProfessor.id,
+          {
+            name: formData.name,
+            email: formData.email,
+            university_name: formData.university,
+            country: formData.country,
+            status: formData.status || 'Pending',
+            department: formData.department,
+            notes: formData.notes,
+            email_date: formData.emailDate,
+            reply_date: formData.replyDate,
+            reminder_date: formData.reminderDate
+          },
+          formData.emailScreenshot,
+          formData.proposalPdf
+        );
+        
+        if (updatedProfessor) {
+          setProfessors(professors.map(prof => 
+            prof.id === currentProfessor.id ? updatedProfessor : prof
+          ));
+        }
+      } else {
+        // Create new professor
+        const newProfessor = await createProfessor(
+          {
+            name: formData.name,
+            email: formData.email,
+            university_name: formData.university,
+            country: formData.country,
+            status: formData.status || 'Pending',
+            department: formData.department,
+            notes: formData.notes,
+            email_date: formData.emailDate,
+            reply_date: formData.replyDate,
+            reminder_date: formData.reminderDate
+          },
+          formData.emailScreenshot,
+          formData.proposalPdf
+        );
+        
+        if (newProfessor) {
+          setProfessors([newProfessor, ...professors]);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving professor:', error);
+    } finally {
+      setIsLoading(false);
+      setIsFormOpen(false);
     }
-    
-    setIsFormOpen(false);
   };
 
   return (
@@ -151,12 +154,40 @@ export default function ProfessorsPage() {
         </motion.button>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && professors.length === 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-12 text-center">
+          <h3 className="text-xl font-medium text-neutral-800 mb-2">No Professors Yet</h3>
+          <p className="text-neutral-600 mb-6">
+            Start by adding your first professor to track your communications.
+          </p>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleAddNewProfessor}
+            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors duration-300"
+          >
+            <Plus size={18} />
+            <span>Add Professor</span>
+          </motion.button>
+        </div>
+      )}
+
       {/* Professor List */}
-      <ProfessorListView 
-        professors={professors} 
-        onEdit={handleEditProfessor}
-        onDelete={handleDeleteClick}
-      />
+      {!isLoading && professors.length > 0 && (
+        <ProfessorListView 
+          professors={professors} 
+          onEdit={handleEditProfessor}
+          onDelete={handleDeleteClick}
+        />
+      )}
 
       {/* Professor Form Modal */}
       <AnimatePresence>
@@ -166,8 +197,8 @@ export default function ProfessorsPage() {
             onClose={() => setIsFormOpen(false)}
             onSubmit={handleFormSubmit}
             professor={currentProfessor}
-            countries={DUMMY_COUNTRIES}
-            scholarships={DUMMY_SCHOLARSHIPS}
+            countries={countries}
+            scholarships={scholarships}
           />
         )}
       </AnimatePresence>

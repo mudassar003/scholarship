@@ -18,13 +18,16 @@ interface ProfessorFormModalProps {
 export interface ProfessorFormData {
   name: string;
   email: string;
+  university: string;
   country: string;
-  scholarship: string;
-  createdAt: string;
+  department?: string;
+  notes?: string;
+  status?: string;
+  emailDate?: string;
+  replyDate?: string;
+  reminderDate?: string;
   emailScreenshot: File | null;
   proposalPdf: File | null;
-  currentEmailScreenshot?: string | null;
-  currentProposalPdf?: string | null;
 }
 
 const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
@@ -42,13 +45,16 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
   const [formData, setFormData] = useState<ProfessorFormData>({
     name: '',
     email: '',
+    university: '',
     country: '',
-    scholarship: '',
-    createdAt: new Date().toISOString().split('T')[0],
+    department: '',
+    notes: '',
+    status: 'Pending',
+    emailDate: new Date().toISOString().split('T')[0],
+    replyDate: '',
+    reminderDate: '',
     emailScreenshot: null,
     proposalPdf: null,
-    currentEmailScreenshot: null,
-    currentProposalPdf: null,
   });
 
   useEffect(() => {
@@ -56,26 +62,32 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
       setFormData({
         name: professor.name,
         email: professor.email,
-        country: professor.country,
-        scholarship: professor.scholarship || '',
-        createdAt: professor.createdAt || new Date().toISOString().split('T')[0],
+        university: professor.university_name || '',
+        country: professor.country || '',
+        department: professor.department || '',
+        notes: professor.notes || '',
+        status: professor.status || 'Pending',
+        emailDate: professor.email_date || new Date().toISOString().split('T')[0],
+        replyDate: professor.reply_date || '',
+        reminderDate: professor.reminder_date || '',
         emailScreenshot: null,
         proposalPdf: null,
-        currentEmailScreenshot: professor.emailScreenshot,
-        currentProposalPdf: professor.proposalPdf,
       });
     } else {
       // Reset form for new professor
       setFormData({
         name: '',
         email: '',
+        university: '',
         country: '',
-        scholarship: '',
-        createdAt: new Date().toISOString().split('T')[0],
+        department: '',
+        notes: '',
+        status: 'Pending',
+        emailDate: new Date().toISOString().split('T')[0],
+        replyDate: '',
+        reminderDate: '',
         emailScreenshot: null,
         proposalPdf: null,
-        currentEmailScreenshot: null,
-        currentProposalPdf: null,
       });
     }
   }, [professor, isOpen]);
@@ -153,6 +165,35 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
           </div>
 
           <div>
+            <label htmlFor="university" className="block text-sm font-medium text-neutral-700 mb-1">
+              University
+            </label>
+            <input
+              type="text"
+              id="university"
+              value={formData.university}
+              onChange={(e) => setFormData({...formData, university: e.target.value})}
+              className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              placeholder="MIT"
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="department" className="block text-sm font-medium text-neutral-700 mb-1">
+              Department
+            </label>
+            <input
+              type="text"
+              id="department"
+              value={formData.department}
+              onChange={(e) => setFormData({...formData, department: e.target.value})}
+              className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              placeholder="Computer Science"
+            />
+          </div>
+
+          <div>
             <label htmlFor="country" className="block text-sm font-medium text-neutral-700 mb-1">
               Country
             </label>
@@ -171,33 +212,73 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
           </div>
 
           <div>
-            <label htmlFor="scholarship" className="block text-sm font-medium text-neutral-700 mb-1">
-              Scholarship (optional)
+            <label htmlFor="status" className="block text-sm font-medium text-neutral-700 mb-1">
+              Status
             </label>
             <select
-              id="scholarship"
-              value={formData.scholarship}
-              onChange={(e) => setFormData({...formData, scholarship: e.target.value})}
+              id="status"
+              value={formData.status}
+              onChange={(e) => setFormData({...formData, status: e.target.value})}
               className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              required
             >
-              <option value="">Select a scholarship</option>
-              {scholarships.map(scholarship => (
-                <option key={scholarship.id} value={scholarship.name}>{scholarship.name}</option>
-              ))}
+              <option value="Pending">Pending</option>
+              <option value="Replied">Replied</option>
+              <option value="Rejected">Rejected</option>
             </select>
           </div>
 
           <div>
-            <label htmlFor="createdAt" className="block text-sm font-medium text-neutral-700 mb-1">
-              Date
+            <label htmlFor="emailDate" className="block text-sm font-medium text-neutral-700 mb-1">
+              Email Date
             </label>
             <input
               type="date"
-              id="createdAt"
-              value={formData.createdAt}
-              onChange={(e) => setFormData({...formData, createdAt: e.target.value})}
+              id="emailDate"
+              value={formData.emailDate}
+              onChange={(e) => setFormData({...formData, emailDate: e.target.value})}
               className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              required
+            />
+          </div>
+
+          {formData.status === 'Replied' && (
+            <div>
+              <label htmlFor="replyDate" className="block text-sm font-medium text-neutral-700 mb-1">
+                Reply Date
+              </label>
+              <input
+                type="date"
+                id="replyDate"
+                value={formData.replyDate}
+                onChange={(e) => setFormData({...formData, replyDate: e.target.value})}
+                className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              />
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="reminderDate" className="block text-sm font-medium text-neutral-700 mb-1">
+              Reminder Date
+            </label>
+            <input
+              type="date"
+              id="reminderDate"
+              value={formData.reminderDate}
+              onChange={(e) => setFormData({...formData, reminderDate: e.target.value})}
+              className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="notes" className="block text-sm font-medium text-neutral-700 mb-1">
+              Notes
+            </label>
+            <textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => setFormData({...formData, notes: e.target.value})}
+              className="w-full border border-neutral-300 rounded-lg px-4 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+              placeholder="Add any notes about this professor..."
             />
           </div>
 
@@ -222,7 +303,9 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
                 <span className="text-sm text-neutral-500 truncate">
                   {formData.emailScreenshot 
                     ? formData.emailScreenshot.name 
-                    : formData.currentEmailScreenshot?.split('/').pop() || 'No file chosen'}
+                    : professor?.email_screenshot?.url 
+                      ? professor.email_screenshot.url.split('/').pop() 
+                      : 'No file chosen'}
                 </span>
               </div>
               <input
@@ -252,7 +335,9 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
                 <span className="text-sm text-neutral-500 truncate">
                   {formData.proposalPdf 
                     ? formData.proposalPdf.name 
-                    : formData.currentProposalPdf?.split('/').pop() || 'No file chosen'}
+                    : professor?.proposal?.url
+                      ? professor.proposal.url.split('/').pop()
+                      : 'No file chosen'}
                 </span>
               </div>
               <input
