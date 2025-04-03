@@ -4,12 +4,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Country } from '@/types';
-import { Plus } from 'lucide-react';
+import { Plus, Search, Globe } from 'lucide-react';
 import { getCountries, createCountry, updateCountry, deleteCountry } from '@/services/countryService';
 import CountryListView from './components/CountryListView';
 import CountryFormModal from './components/CountryFormModal';
 import DeleteConfirmationModal from '@/app/professors/components/DeleteConfirmationModal';
-import SearchAndFilter from '@/components/SearchAndFilter';
 
 // Define the shape of the form data
 interface CountryFormData {
@@ -18,28 +17,24 @@ interface CountryFormData {
   flag?: string;
 }
 
-export default function CountriesPage() {
+export default function CountriesPage(): React.ReactNode {
   const [countries, setCountries] = useState<Country[]>([]);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [filteredCountries, setFilteredCountries] = useState<Country[]>([]);
+  const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [currentCountry, setCurrentCountry] = useState<Country | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [searchTerm, setSearchTerm] = useState<string>('');
   
-  // Define filters
-  const filters = [
-    { id: 'all', label: 'All Countries' }
-  ];
-
   useEffect(() => {
     // Fetch data from Supabase when component mounts
-    const fetchData = async () => {
+    const fetchData = async (): Promise<void> => {
       setIsLoading(true);
       
       try {
         const countriesData = await getCountries();
         setCountries(countriesData);
+        setFilteredCountries(countriesData);
       } catch (error) {
         console.error('Error fetching countries:', error);
       } finally {
@@ -51,30 +46,34 @@ export default function CountriesPage() {
   }, []);
 
   // Filter countries based on search term
-  const filteredCountries = countries.filter(country => {
-    // Search filter
-    const matchesSearch = searchTerm === '' || 
-      country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      country.code.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    const filtered = countries.filter(country => {
+      // Search filter
+      const matchesSearch = searchTerm === '' || 
+        country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        country.code.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      return matchesSearch;
+    });
     
-    return matchesSearch;
-  });
+    setFilteredCountries(filtered);
+  }, [countries, searchTerm]);
 
-  const handleAddNewCountry = () => {
+  const handleAddNewCountry = (): void => {
     setCurrentCountry(null);
     setIsFormOpen(true);
   };
 
-  const handleEditCountry = (country: Country) => {
+  const handleEditCountry = (country: Country): void => {
     setCurrentCountry(country);
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = (countryId: string) => {
+  const handleDeleteClick = (countryId: string): void => {
     setConfirmDeleteId(countryId);
   };
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = async (): Promise<void> => {
     if (confirmDeleteId) {
       setIsLoading(true);
       const success = await deleteCountry(confirmDeleteId);
@@ -88,7 +87,7 @@ export default function CountriesPage() {
     }
   };
 
-  const handleFormSubmit = async (formData: CountryFormData) => {
+  const handleFormSubmit = async (formData: CountryFormData): Promise<void> => {
     setIsLoading(true);
     
     try {
@@ -130,87 +129,97 @@ export default function CountriesPage() {
   };
 
   return (
-    <div className="py-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-neutral-800">Countries</h1>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleAddNewCountry}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors duration-300"
-        >
-          <Plus size={18} />
-          <span>Add Country</span>
-        </motion.button>
+    <div className="w-full bg-neutral-50">
+      {/* Hero Section with Search Bar - Full Width */}
+      <div className="w-full bg-neutral-100 py-8">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div className="relative flex-grow max-w-2xl">
+              <input
+                type="text"
+                placeholder="Search countries by name or code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-white border border-neutral-200 rounded-xl pl-14 pr-5 py-4 text-neutral-700 placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-300 transition-all duration-300 shadow-sm"
+              />
+              <div className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-400">
+                <Search size={20} />
+              </div>
+            </div>
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleAddNewCountry}
+              className="bg-neutral-800 hover:bg-neutral-700 text-white px-6 py-4 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-md"
+            >
+              <Plus size={16} />
+              <Globe size={16} className="ml-1" />
+              Add Country
+            </motion.button>
+          </div>
+        </div>
       </div>
 
-      {/* Search and Filters */}
-      <SearchAndFilter
-        searchPlaceholder="Search countries by name or code..."
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        filters={filters}
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-      />
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+          </div>
+        )}
 
-      {/* Loading State */}
-      {isLoading && (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-      )}
+        {/* Empty State */}
+        {!isLoading && countries.length === 0 && (
+          <div className="bg-white rounded-xl shadow-md border border-neutral-200 p-12 text-center">
+            <h3 className="text-xl font-medium text-neutral-800 mb-2">No Countries Yet</h3>
+            <p className="text-neutral-600 mb-6">
+              Start by adding countries for organizing scholarships and universities.
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleAddNewCountry}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors duration-300"
+            >
+              <Plus size={18} />
+              <span>Add Country</span>
+            </motion.button>
+          </div>
+        )}
 
-      {/* Empty State */}
-      {!isLoading && countries.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-12 text-center">
-          <h3 className="text-xl font-medium text-neutral-800 mb-2">No Countries Yet</h3>
-          <p className="text-neutral-600 mb-6">
-            Start by adding countries for organizing scholarships and universities.
-          </p>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleAddNewCountry}
-            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors duration-300"
-          >
-            <Plus size={18} />
-            <span>Add Country</span>
-          </motion.button>
-        </div>
-      )}
-
-      {/* Countries List */}
-      {!isLoading && countries.length > 0 && (
-        <CountryListView 
-          countries={filteredCountries} 
-          onEdit={handleEditCountry}
-          onDelete={handleDeleteClick}
-        />
-      )}
-
-      {/* Country Form Modal */}
-      <AnimatePresence>
-        {isFormOpen && (
-          <CountryFormModal
-            isOpen={isFormOpen}
-            onClose={() => setIsFormOpen(false)}
-            onSubmit={handleFormSubmit}
-            country={currentCountry}
+        {/* Countries List */}
+        {!isLoading && countries.length > 0 && (
+          <CountryListView 
+            countries={filteredCountries} 
+            onEdit={handleEditCountry}
+            onDelete={handleDeleteClick}
           />
         )}
-      </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {confirmDeleteId && (
-          <DeleteConfirmationModal
-            isOpen={!!confirmDeleteId}
-            onClose={() => setConfirmDeleteId(null)}
-            onConfirm={handleDeleteConfirm}
-          />
-        )}
-      </AnimatePresence>
+        {/* Country Form Modal */}
+        <AnimatePresence>
+          {isFormOpen && (
+            <CountryFormModal
+              isOpen={isFormOpen}
+              onClose={() => setIsFormOpen(false)}
+              onSubmit={handleFormSubmit}
+              country={currentCountry}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {confirmDeleteId && (
+            <DeleteConfirmationModal
+              isOpen={!!confirmDeleteId}
+              onClose={() => setConfirmDeleteId(null)}
+              onConfirm={handleDeleteConfirm}
+            />
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Plus, Home, Settings } from 'lucide-react';
+import { Plus, Home, Settings, Bell } from 'lucide-react';
 
 interface HeaderProps {
   // Optional props for customization if needed
@@ -21,6 +21,7 @@ const Header: React.FC<HeaderProps> = ({ logoText = 'ScholarSync' }) => {
     { label: 'Professors', href: '/professors', icon: null },
     { label: 'Countries', href: '/countries', icon: null },
     { label: 'Scholarships', href: '/scholarships', icon: null },
+    { label: 'Notifications', href: '/notifications', icon: Bell },
     { label: 'Dashboard', href: '/dashboard', icon: null },
     { label: 'Settings', href: '/settings', icon: Settings },
   ];
@@ -36,7 +37,7 @@ const Header: React.FC<HeaderProps> = ({ logoText = 'ScholarSync' }) => {
   };
 
   return (
-    <header className="flex justify-between items-center mb-16 px-6 py-10">
+    <header className="flex justify-between items-center px-6 py-5 bg-white z-10 relative border-b-0">
       <motion.div 
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}

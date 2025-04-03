@@ -1,9 +1,9 @@
-//src/app/page.tsx
+//src/app/notifications/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Search, ChevronDown, Edit2, Trash2, Clock, Check, X } from 'lucide-react';
+import { Bell, Search, ChevronDown, Edit2, Trash2, Clock, Check, X, Filter } from 'lucide-react';
 import DeleteConfirmationModal from '@/app/professors/components/DeleteConfirmationModal';
 import { getProfessors, deleteProfessor } from '@/services/professorService';
 import { updateProfessorStatus } from '@/services/statusService';
@@ -18,18 +18,22 @@ interface Email {
   country: string;
   scholarship: string;
   status: string;
+  emailDate: string | null;
   emailScreenshot: string | null;
   proposalPdf: string | null;
+  daysSinceEmail: number;
 }
 
-export default function Home(): React.ReactNode {
+export default function NotificationsPage() {
   const [emails, setEmails] = useState<Email[]>([]);
+  const [filteredEmails, setFilteredEmails] = useState<Email[]>([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currentEmail, setCurrentEmail] = useState<Email | null>(null);
   const [isQuickEditOpen, setIsQuickEditOpen] = useState(false);
+  const [sortByDays, setSortByDays] = useState(true); // True = ascending, False = descending
 
   useEffect(() => {
     fetchEmails();
@@ -39,18 +43,45 @@ export default function Home(): React.ReactNode {
     setIsLoading(true);
     try {
       const professorsData = await getProfessors();
-      // Transform professors data into email tracking format
-      const emailsData: Email[] = professorsData.map(professor => ({
-        id: professor.id || '',  // Fallback to empty string if undefined
-        professor: professor.name,
-        university: professor.university_name || 'Unknown University',
-        country: professor.country || 'Unknown Country',
-        scholarship: professor.research || 'Research Scholarship',
-        status: professor.status || 'Pending',
-        emailScreenshot: professor.email_screenshot?.url || null,
-        proposalPdf: professor.proposal?.url || null
-      }));
+      
+      // Calculate days since email was sent
+      const currentDate = new Date();
+      
+      // Transform professors data into email tracking format with days calculation
+      const emailsData: Email[] = professorsData
+        .map(professor => {
+          // Calculate days since email was sent
+          const emailDate = professor.email_date ? new Date(professor.email_date) : 
+                            professor.created_at ? new Date(professor.created_at) : null;
+          
+          const daysSinceEmail = emailDate 
+            ? Math.floor((currentDate.getTime() - emailDate.getTime()) / (1000 * 60 * 60 * 24)) 
+            : 0;
+          
+          return {
+            id: professor.id || '',
+            professor: professor.name,
+            university: professor.university_name || 'Unknown University',
+            country: professor.country || 'Unknown Country',
+            scholarship: professor.research || professor.scholarship || 'Research Scholarship',
+            status: professor.status || 'Pending',
+            emailDate: emailDate ? emailDate.toISOString() : null,
+            emailScreenshot: professor.email_screenshot?.url || null,
+            proposalPdf: professor.proposal?.url || null,
+            daysSinceEmail: daysSinceEmail
+          };
+        })
+        // Filter emails that are 7 or more days old
+        .filter(email => email.daysSinceEmail >= 7);
+      
       setEmails(emailsData);
+      
+      // Apply initial sorting (oldest first by default)
+      const sortedEmails = [...emailsData].sort((a, b) => 
+        sortByDays ? a.daysSinceEmail - b.daysSinceEmail : b.daysSinceEmail - a.daysSinceEmail
+      );
+      
+      setFilteredEmails(sortedEmails);
     } catch (error) {
       console.error('Error fetching professors data:', error);
     } finally {
@@ -58,24 +89,38 @@ export default function Home(): React.ReactNode {
     }
   };
 
-  // Filter emails based on search term and active filter
-  const filteredEmails = emails.filter(email => {
-    // Search filter
-    const matchesSearch = searchTerm === '' || 
-      email.professor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.university.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.scholarship.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    // Filter and sort emails whenever filters or search term changes
+    filterAndSortEmails();
+  }, [activeFilter, searchTerm, emails, sortByDays]);
+
+  const filterAndSortEmails = () => {
+    // First apply filters
+    const filtered = emails.filter(email => {
+      // Search filter
+      const matchesSearch = searchTerm === '' || 
+        email.professor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        email.university.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        email.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        email.scholarship.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Status filter
+      let matchesStatus = activeFilter === 'all';
+      
+      if (activeFilter === 'pending' && email.status === 'Pending') matchesStatus = true;
+      if (activeFilter === 'replied' && email.status === 'Replied') matchesStatus = true;
+      if (activeFilter === 'rejected' && email.status === 'Rejected') matchesStatus = true;
+      
+      return matchesSearch && matchesStatus;
+    });
     
-    // Status filter
-    let matchesStatus = activeFilter === 'all';
+    // Then sort by days
+    const sorted = [...filtered].sort((a, b) => 
+      sortByDays ? a.daysSinceEmail - b.daysSinceEmail : b.daysSinceEmail - a.daysSinceEmail
+    );
     
-    if (activeFilter === 'pending' && email.status === 'Pending') matchesStatus = true;
-    if (activeFilter === 'replied' && email.status === 'Replied') matchesStatus = true;
-    if (activeFilter === 'rejected' && email.status === 'Rejected') matchesStatus = true;
-    
-    return matchesSearch && matchesStatus;
-  });
+    setFilteredEmails(sorted);
+  };
 
   // Handle regular edit (navigate to full edit page)
   const handleEditEmail = (email: Email) => {
@@ -133,46 +178,27 @@ export default function Home(): React.ReactNode {
     }
   };
 
-  // Update status from dropdown
-  const handleStatusChange = async (emailId: string, newStatus: string) => {
-    try {
-      // Update the status in the database
-      const success = await updateProfessorStatus(emailId, newStatus);
-      
-      if (success) {
-        // Update local state
-        setEmails(emails.map(email => 
-          email.id === emailId 
-            ? { ...email, status: newStatus } 
-            : email
-        ));
-      }
-      
-      return success;
-    } catch (error) {
-      console.error('Error updating status:', error);
-      return false;
-    }
+  // Toggle sort order
+  const toggleSortOrder = () => {
+    setSortByDays(prev => !prev);
   };
 
-  const handleAddNewEmail = () => {
-    // Navigate to professor creation page
-    window.location.href = '/professors?new=true';
-  };
-
-  const handleViewDocument = (url: string | null, type: string) => {
-    if (url) {
-      window.open(url, '_blank');
-    } else {
-      console.error(`No ${type} document available.`);
-    }
+  // Format days for display
+  const formatDays = (days: number) => {
+    if (days === 1) return '1 day ago';
+    return `${days} days ago`;
   };
 
   return (
-    <div>
-      {/* Hero Section with Search Bar - Full Width, Properly Aligned */}
+    <>
+      {/* Hero Section with Search Bar */}
       <div className="w-full bg-neutral-100 py-8">
-        <div className="max-w-7xl mx-auto text-center px-4">         
+        <div className="max-w-7xl mx-auto text-center px-4">    
+          <div className="mb-6 flex justify-center items-center">
+            <Bell className="text-neutral-700 mr-2" />
+            <h1 className="text-2xl font-bold text-neutral-800">Follow-up Notifications</h1>
+          </div>     
+          
           {/* Centered Search Bar */}
           <div className="relative max-w-3xl mx-auto mb-8">
             <input
@@ -225,16 +251,14 @@ export default function Home(): React.ReactNode {
               Rejected
             </button>
             
-            {/* New Email Button */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleAddNewEmail}
-              className="bg-neutral-800 hover:bg-neutral-700 text-white px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-md ml-2"
+            {/* Sort By Age Button */}
+            <button
+              onClick={toggleSortOrder}
+              className="bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-6 py-3 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ml-2"
             >
-              <Plus size={16} />
-              New Email
-            </motion.button>
+              <Filter size={16} />
+              Sort: {sortByDays ? 'Oldest First' : 'Newest First'}
+            </button>
           </div>
         </div>
       </div>
@@ -251,21 +275,21 @@ export default function Home(): React.ReactNode {
         {/* Empty State */}
         {!isLoading && filteredEmails.length === 0 && (
           <div className="bg-white rounded-xl shadow-md border border-neutral-200 p-12 text-center">
-            <h3 className="text-xl font-medium text-neutral-800 mb-2">No Emails Found</h3>
+            <h3 className="text-xl font-medium text-neutral-800 mb-2">No Follow-up Notifications</h3>
             <p className="text-neutral-600 mb-6">
               {searchTerm || activeFilter !== 'all' 
                 ? 'Try adjusting your search or filters to find more results.' 
-                : 'Start by adding your first professor to track emails.'}
+                : 'There are no emails that have been sent more than 7 days ago requiring follow-up.'}
             </p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleAddNewEmail}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 mx-auto"
-            >
-              <Plus size={16} />
-              Add Professor
-            </motion.button>
+            <Link href="/">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 mx-auto"
+              >
+                Return to Dashboard
+              </motion.button>
+            </Link>
           </div>
         )}
 
@@ -277,8 +301,7 @@ export default function Home(): React.ReactNode {
                 <tr className="bg-neutral-50">
                   <th className="text-left py-4 px-5 text-sm font-medium text-neutral-500">PROFESSOR</th>
                   <th className="text-left py-4 px-5 text-sm font-medium text-neutral-500">UNIVERSITY</th>
-                  <th className="text-left py-4 px-5 text-sm font-medium text-neutral-500">COUNTRY</th>
-                  <th className="text-left py-4 px-5 text-sm font-medium text-neutral-500">SCHOLARSHIP</th>
+                  <th className="text-left py-4 px-5 text-sm font-medium text-neutral-500">DAYS SINCE EMAIL</th>
                   <th className="text-left py-4 px-5 text-sm font-medium text-neutral-500">STATUS</th>
                   <th className="text-center py-4 px-5 text-sm font-medium text-neutral-500">ACTIONS</th>
                 </tr>
@@ -293,8 +316,15 @@ export default function Home(): React.ReactNode {
                       </div>
                     </td>
                     <td className="py-4 px-5 text-neutral-600">{email.university}</td>
-                    <td className="py-4 px-5 text-neutral-600">{email.country}</td>
-                    <td className="py-4 px-5 text-neutral-600">{email.scholarship}</td>
+                    <td className="py-4 px-5">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                        email.daysSinceEmail > 14 ? 'bg-red-100 text-red-800' : 
+                        email.daysSinceEmail > 10 ? 'bg-orange-100 text-orange-800' : 
+                        'bg-amber-100 text-amber-800'
+                      }`}>
+                        {formatDays(email.daysSinceEmail)}
+                      </span>
+                    </td>
                     <td className="py-4 px-5">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                         email.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -310,12 +340,14 @@ export default function Home(): React.ReactNode {
                         <button 
                           onClick={() => handleEditEmail(email)}
                           className="p-1 text-indigo-600 hover:text-indigo-800 transition-colors"
+                          title="Edit"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
                           onClick={() => handleDeleteEmail(email.id)}
                           className="p-1 text-red-500 hover:text-red-700 transition-colors"
+                          title="Delete"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -351,6 +383,6 @@ export default function Home(): React.ReactNode {
           />
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
