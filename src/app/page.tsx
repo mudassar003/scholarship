@@ -13,23 +13,32 @@ import { getProfessors, deleteProfessor } from '@/services/professorService';
 import { updateProfessorStatus } from '@/services/statusService';
 import { toast } from 'react-hot-toast'; // Add react-hot-toast package for notifications
 
+// Define the Email interface
+interface Email {
+  id: string;
+  professor: string;
+  university: string;
+  country: string;
+  scholarship: string;
+  status: string;
+  emailScreenshot: string | null;
+  proposalPdf: string | null;
+}
+
 export default function Home() {
-  const [emails, setEmails] = useState([]);
+  const [emails, setEmails] = useState<Email[]>([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentEmail, setCurrentEmail] = useState(null);
+  const [currentEmail, setCurrentEmail] = useState<Email | null>(null);
   const [isQuickEditOpen, setIsQuickEditOpen] = useState(false);
 
   const filters = [
     { id: 'all', label: 'All Emails' },
     { id: 'pending', label: 'Pending' },
     { id: 'replied', label: 'Replied' },
-    { id: 'rejected', label: 'Rejected' },
-    { id: 'follow-up', label: 'Follow Up' },
-    { id: 'scheduled', label: 'Scheduled' },
-    { id: 'no-response', label: 'No Response' }
+    { id: 'rejected', label: 'Rejected' }
   ];
 
   useEffect(() => {
@@ -41,8 +50,8 @@ export default function Home() {
     try {
       const professorsData = await getProfessors();
       // Transform professors data into email tracking format
-      const emailsData = professorsData.map(professor => ({
-        id: professor.id,
+      const emailsData: Email[] = professorsData.map(professor => ({
+        id: professor.id || '',  // Fallback to empty string if undefined
         professor: professor.name,
         university: professor.university_name || 'Unknown University',
         country: professor.country || 'Unknown Country',
@@ -75,25 +84,22 @@ export default function Home() {
     if (activeFilter === 'pending' && email.status === 'Pending') matchesStatus = true;
     if (activeFilter === 'replied' && email.status === 'Replied') matchesStatus = true;
     if (activeFilter === 'rejected' && email.status === 'Rejected') matchesStatus = true;
-    if (activeFilter === 'follow-up' && email.status === 'Follow Up') matchesStatus = true;
-    if (activeFilter === 'scheduled' && email.status === 'Scheduled') matchesStatus = true;
-    if (activeFilter === 'no-response' && email.status === 'No Response') matchesStatus = true;
     
     return matchesSearch && matchesStatus;
   });
 
   // Handle regular edit (navigate to full edit page)
-  const handleEditEmail = (email) => {
+  const handleEditEmail = (email: Email) => {
     window.location.href = `/professors?edit=${email.id}`;
   };
 
   // Handle quick edit (show modal)
-  const handleQuickEdit = (email) => {
+  const handleQuickEdit = (email: Email) => {
     setCurrentEmail(email);
     setIsQuickEditOpen(true);
   };
 
-  const handleDeleteEmail = (emailId) => {
+  const handleDeleteEmail = (emailId: string) => {
     setConfirmDeleteId(emailId);
   };
 
@@ -121,7 +127,7 @@ export default function Home() {
   };
 
   // Save quick edit changes
-  const handleSaveQuickEdit = async (emailId, updates) => {
+  const handleSaveQuickEdit = async (emailId: string, updates: { status: string, notes?: string }) => {
     try {
       // Update the status in the database
       const success = await updateProfessorStatus(emailId, updates.status);
@@ -147,7 +153,7 @@ export default function Home() {
   };
 
   // Update status from dropdown
-  const handleStatusChange = async (emailId, newStatus) => {
+  const handleStatusChange = async (emailId: string, newStatus: string) => {
     try {
       // Update the status in the database
       const success = await updateProfessorStatus(emailId, newStatus);
@@ -177,7 +183,7 @@ export default function Home() {
     window.location.href = '/professors?new=true';
   };
 
-  const handleViewDocument = (url, type) => {
+  const handleViewDocument = (url: string | null, type: string) => {
     if (url) {
       window.open(url, '_blank');
     } else {

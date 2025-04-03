@@ -4,21 +4,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Clock, Check, AlertTriangle } from 'lucide-react';
-
-interface Email {
-  id: string;
-  professor: string;
-  university: string;
-  country: string;
-  scholarship: string;
-  status: string;
-}
+import { Email } from './EmailList'; // Import the Email interface
 
 interface QuickEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   email: Email | null;
-  onSave: (emailId: string, updates: { status: string, reminderDate?: string, notes?: string }) => Promise<boolean>;
+  onSave: (emailId: string, updates: { status: string, notes?: string }) => Promise<boolean>;
 }
 
 const QuickEditModal: React.FC<QuickEditModalProps> = ({
@@ -28,36 +20,20 @@ const QuickEditModal: React.FC<QuickEditModalProps> = ({
   onSave
 }) => {
   const [status, setStatus] = useState<string>('');
-  const [reminderDate, setReminderDate] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   useEffect(() => {
     if (email) {
       setStatus(email.status || 'Pending');
-      
-      // Set default reminder date based on status
-      if (status === 'Follow Up' || status === 'No Response') {
-        const nextWeek = new Date();
-        nextWeek.setDate(nextWeek.getDate() + 7);
-        setReminderDate(nextWeek.toISOString().split('T')[0]);
-      } else if (status === 'Scheduled') {
-        const threeDaysLater = new Date();
-        threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-        setReminderDate(threeDaysLater.toISOString().split('T')[0]);
-      } else {
-        setReminderDate('');
-      }
+      setNotes('');
     }
-  }, [email, status]);
+  }, [email]);
 
   const statusOptions = [
     { value: 'Pending', label: 'Pending', icon: Clock, color: 'bg-yellow-100 text-yellow-800' },
     { value: 'Replied', label: 'Replied', icon: Check, color: 'bg-green-100 text-green-800' },
-    { value: 'Rejected', label: 'Rejected', icon: AlertTriangle, color: 'bg-red-100 text-red-800' },
-    { value: 'Follow Up', label: 'Follow Up', icon: Clock, color: 'bg-blue-100 text-blue-800' },
-    { value: 'Scheduled', label: 'Scheduled', icon: Clock, color: 'bg-purple-100 text-purple-800' },
-    { value: 'No Response', label: 'No Response', icon: AlertTriangle, color: 'bg-orange-100 text-orange-800' }
+    { value: 'Rejected', label: 'Rejected', icon: AlertTriangle, color: 'bg-red-100 text-red-800' }
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,7 +45,6 @@ const QuickEditModal: React.FC<QuickEditModalProps> = ({
     try {
       const updates = {
         status,
-        reminderDate,
         notes
       };
       
@@ -139,27 +114,6 @@ const QuickEditModal: React.FC<QuickEditModalProps> = ({
               })}
             </div>
           </div>
-
-          {/* Reminder Date - show for relevant statuses */}
-          {(status === 'Follow Up' || status === 'Scheduled' || status === 'No Response') && (
-            <div>
-              <label htmlFor="reminderDate" className="block text-sm font-medium text-neutral-700 mb-1">
-                Reminder Date
-              </label>
-              <input
-                type="date"
-                id="reminderDate"
-                value={reminderDate}
-                onChange={(e) => setReminderDate(e.target.value)}
-                className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              />
-              <p className="text-xs text-neutral-500 mt-1">
-                {status === 'Follow Up' && 'Date to follow up with the professor.'}
-                {status === 'Scheduled' && 'Date of the scheduled meeting/call.'}
-                {status === 'No Response' && 'Date to check again if no response is received.'}
-              </p>
-            </div>
-          )}
 
           {/* Quick notes */}
           <div>
