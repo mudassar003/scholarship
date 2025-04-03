@@ -5,9 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import SearchAndFilter from '@/components/SearchAndFilter';
 import EmailList from '@/components/EmailList';
-import ActionButton from '@/components/ActionButton';
 import QuickEditModal from '@/components/QuickEditModal';
-import { Plus } from 'lucide-react';
 import DeleteConfirmationModal from '@/app/professors/components/DeleteConfirmationModal';
 import { getProfessors, deleteProfessor } from '@/services/professorService';
 import { updateProfessorStatus } from '@/services/statusService';
@@ -178,11 +176,6 @@ export default function Home() {
     }
   };
 
-  const handleAddNewEmail = () => {
-    // Navigate to professor creation page
-    window.location.href = '/professors?new=true';
-  };
-
   const handleViewDocument = (url: string | null, type: string) => {
     if (url) {
       window.open(url, '_blank');
@@ -192,19 +185,7 @@ export default function Home() {
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-neutral-800">Email Tracking</h1>
-        <ActionButton
-          icon={Plus}
-          label="New Email"
-          onClick={handleAddNewEmail}
-          variant="primary"
-          size="lg"
-          showLabel={true}
-        />
-      </div>
-
+    <div className="p-4 sm:p-6 md:p-8 max-w-full overflow-hidden">
       {/* Search and Filters section */}
       <SearchAndFilter
         searchPlaceholder="Search professors, universities, scholarships..."
@@ -224,27 +205,19 @@ export default function Home() {
 
       {/* Empty State */}
       {!isLoading && filteredEmails.length === 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-12 text-center">
+        <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-4 sm:p-8 md:p-12 text-center">
           <h3 className="text-xl font-medium text-neutral-800 mb-2">No Emails Found</h3>
           <p className="text-neutral-600 mb-6">
             {searchTerm || activeFilter !== 'all' 
               ? 'Try adjusting your search or filters to find more results.' 
               : 'Start by adding your first professor to track emails.'}
           </p>
-          <ActionButton
-            icon={Plus}
-            label="Add Professor"
-            onClick={handleAddNewEmail}
-            variant="primary"
-            size="lg"
-            showLabel={true}
-          />
         </div>
       )}
 
       {/* Email Tracking Table */}
       {!isLoading && filteredEmails.length > 0 && (
-        <section>
+        <div className="overflow-x-auto w-full">
           <EmailList 
             emails={filteredEmails} 
             onEdit={handleEditEmail}
@@ -254,7 +227,7 @@ export default function Home() {
             onStatusChange={handleStatusChange}
             onQuickEdit={handleQuickEdit}
           />
-        </section>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
