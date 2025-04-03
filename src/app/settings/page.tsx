@@ -1,11 +1,12 @@
-//src/app/settings/page.tsx
+// src/app/settings/page.tsx with improved error handling
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Bell, Mail, Phone } from 'lucide-react';
+import { Save, Bell, Mail, Phone, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
+import { getProfessorsForReminder, processFollowupReminders } from '@/services/notificationService';
 
 // Default user ID - in a real app, this would come from authentication
 const DEFAULT_USER_ID = '1';
@@ -13,6 +14,9 @@ const DEFAULT_USER_ID = '1';
 export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTestingCron, setIsTestingCron] = useState(false);
+  const [remindableCount, setRemindableCount] = useState(0);
+  const [testResult, setTestResult] = useState(null);
   const [settings, setSettings] = useState({
     email_notifications: true,
     sms_notifications: false,
@@ -25,34 +29,127 @@ export default function SettingsPage() {
   const fetchSettings = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Try to get existing settings
-      const { data, error } = await supabase
-        .from('notification_settings')
-        .select('*')
-        .eq('user_id', DEFAULT_USER_ID)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 means no rows returned
-        console.error('Error fetching settings:', error);
-        toast.error('Failed to load notification settings');
-      } else if (data) {
-        // If settings exist, use them
-        setSettings({
-          ...settings,
-          email_notifications: data.email_notifications,
-          sms_notifications: data.sms_notifications,
-          phone_number: data.phone_number || '',
-          reminder_days: data.reminder_days || 7,
-          followup_message_template: data.followup_message_template || settings.followup_message_template,
-          status_update_template: data.status_update_template || settings.status_update_template
-        });
+      // Check if the notification_settings table exists
+      let settingsExist = true;
+      try {
+        // This is a lightweight query to check if the table exists
+        const { count, error: tableCheckError } = await supabase
+          .from('notification_settings')
+          .select('*', { count: 'exact', head: true });
+        
+        if (tableCheckError) {
+          console.log('Table check error:', tableCheckError);
+          // If error.code is 'PGRST109' or the message includes "does not exist", the table doesn't exist
+          if (tableCheckError.code === 'PGRST109' || 
+              (tableCheckError.message && tableCheckError.message.includes('does not exist'))) {
+            settingsExist = false;
+            console.log('Table does not exist, will be created with default settings');
+          }
+        }
+      } catch (checkError) {
+        console.error('Error checking table existence:', checkError);
       }
+
+      // If the table exists, try to get settings
+      if (settingsExist) {
+        const { data, error } = await supabase
+          .from('notification_settings')
+          .select('*')
+          .eq('user_id', DEFAULT_USER_ID)
+          .maybeSingle();
+
+        if (error) {
+          // Log the detailed error 
+          console.error('Error fetching settings:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          
+          // PGRST116 means no rows returned, which is not really an error in this context
+          if (error.code !== 'PGRST116') {
+            toast.error('Failed to load notification settings');
+          } else {
+            // Create new settings since none exist for this user
+            await createDefaultSettings();
+          }
+        } else if (data) {
+          // If settings exist, use them
+          setSettings({
+            email_notifications: data.email_notifications ?? true,
+            sms_notifications: data.sms_notifications ?? false,
+            phone_number: data.phone_number || '',
+            reminder_days: data.reminder_days || 7,
+            followup_message_template: data.followup_message_template || settings.followup_message_template,
+            status_update_template: data.status_update_template || settings.status_update_template
+          });
+        } else {
+          // No rows returned but also no error, create new settings
+          await createDefaultSettings();
+        }
+      } else {
+        // Table doesn't exist, create it with default settings
+        await createDefaultSettings();
+      }
+      
+      // Try to get professors needing reminders
+      try {
+        const professors = await getProfessorsForReminder();
+        setRemindableCount(professors.length);
+      } catch (reminderError) {
+        console.error('Error getting professors for reminder:', reminderError);
+        setRemindableCount(0);
+      }
+      
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('Unexpected error in fetchSettings:', error);
+      toast.error('Failed to load settings and data');
     } finally {
       setIsLoading(false);
     }
-  }, [settings]); // Include settings in dependencies
+  }, [settings.followup_message_template, settings.status_update_template]);
+
+  // Function to create default settings
+  const createDefaultSettings = async () => {
+    try {
+      const defaultSettings = {
+        user_id: DEFAULT_USER_ID,
+        email_notifications: true,
+        sms_notifications: false,
+        phone_number: '',
+        phone_verified: false,
+        reminder_days: 7,
+        followup_message_template: 'Time to follow up with {name} from {university}.',
+        status_update_template: 'Status update for {name}: {status}'
+      };
+      
+      const { data, error } = await supabase
+        .from('notification_settings')
+        .insert(defaultSettings)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error creating default settings:', error);
+        // Continue with default settings locally even if save failed
+      } else if (data) {
+        // Use the saved settings
+        setSettings({
+          email_notifications: data.email_notifications,
+          sms_notifications: data.sms_notifications,
+          phone_number: data.phone_number || '',
+          reminder_days: data.reminder_days,
+          followup_message_template: data.followup_message_template,
+          status_update_template: data.status_update_template
+        });
+        
+        toast.success('Default notification settings created');
+      }
+    } catch (error) {
+      console.error('Error in createDefaultSettings:', error);
+    }
+  };
 
   useEffect(() => {
     fetchSettings();
@@ -70,7 +167,8 @@ export default function SettingsPage() {
         .eq('user_id', DEFAULT_USER_ID)
         .maybeSingle();
 
-      if (checkError) {
+      // If there's an error but it's not "no rows returned"
+      if (checkError && checkError.code !== 'PGRST116') {
         console.error('Error checking settings:', checkError);
         toast.error('Failed to save settings');
         return;
@@ -96,6 +194,8 @@ export default function SettingsPage() {
           toast.error('Failed to update settings');
           return;
         }
+        
+        toast.success('Settings updated successfully');
       } else {
         // Create new settings
         const { error: insertError } = await supabase
@@ -115,14 +215,46 @@ export default function SettingsPage() {
           toast.error('Failed to save settings');
           return;
         }
+        
+        toast.success('Settings saved successfully');
       }
 
-      toast.success('Settings saved successfully');
+      // Refresh remindable count
+      fetchSettings();
     } catch (error) {
       console.error('Unexpected error:', error);
       toast.error('An error occurred while saving settings');
     } finally {
       setIsSaving(false);
+    }
+  };
+  
+  const testCronJob = async () => {
+    setIsTestingCron(true);
+    setTestResult(null);
+    
+    try {
+      // Run the reminder process
+      const result = await processFollowupReminders();
+      setTestResult(result);
+      
+      if (result.success) {
+        toast.success(`Cron job completed successfully: ${result.notificationsSent} notifications sent`);
+      } else {
+        toast.error(`Cron job failed: ${result.error}`);
+      }
+      
+      // Refresh data
+      fetchSettings();
+    } catch (error) {
+      console.error('Error testing cron job:', error);
+      toast.error('Failed to test cron job');
+      setTestResult({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } finally {
+      setIsTestingCron(false);
     }
   };
 
@@ -257,6 +389,69 @@ export default function SettingsPage() {
                     Use {"{name}"} for professor name, {"{university}"} for university
                   </p>
                 </div>
+              </div>
+            </div>
+
+            {/* Test Notification Features */}
+            <div className="border-t border-neutral-200 pt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-neutral-800 flex items-center gap-2">
+                  <RefreshCw size={20} className="text-indigo-500" />
+                  Cron Job Status
+                </h2>
+                <button
+                  type="button"
+                  onClick={fetchSettings}
+                  className="px-3 py-1 bg-neutral-100 text-neutral-700 rounded-lg hover:bg-neutral-200 transition-colors flex items-center gap-1"
+                >
+                  <RefreshCw size={14} />
+                  Refresh
+                </button>
+              </div>
+              
+              <div className="p-4 bg-neutral-50 rounded-lg mb-4">
+                <div className="flex justify-between">
+                  <div>
+                    <p className="font-medium flex items-center gap-2">
+                      {remindableCount > 0 ? (
+                        <>
+                          <AlertTriangle size={16} className="text-yellow-500" />
+                          <span>Professors needing follow-up: <span className="text-yellow-600 font-bold">{remindableCount}</span></span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={16} className="text-green-500" />
+                          <span>No professors currently need follow-up</span>
+                        </>
+                      )}
+                    </p>
+                    <p className="text-sm text-neutral-600 mt-1">
+                      These are professors who were emailed {settings.reminder_days} days ago and haven't received a response.
+                    </p>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={testCronJob}
+                    disabled={isTestingCron || remindableCount === 0}
+                    className={`px-4 py-2 rounded-lg font-medium ${
+                      isTestingCron || remindableCount === 0
+                        ? 'bg-neutral-200 text-neutral-500 cursor-not-allowed'
+                        : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                    } transition-colors`}
+                  >
+                    {isTestingCron ? 'Running...' : 'Test Cron Job Now'}
+                  </button>
+                </div>
+                
+                {testResult && (
+                  <div className="mt-4 p-3 bg-white rounded border border-neutral-200">
+                    <h3 className="text-sm font-medium mb-1">Test Result:</h3>
+                    <pre className="text-xs overflow-auto max-h-36">
+                      {JSON.stringify(testResult, null, 2)}
+                    </pre>
+                  </div>
+                )}
               </div>
             </div>
 

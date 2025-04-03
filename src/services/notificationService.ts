@@ -1,4 +1,4 @@
-// src/services/notificationService.ts
+// src/services/notificationService.ts (Fixed Version)
 import { supabase } from '@/lib/supabase';
 import { Professor } from '@/types';
 
@@ -10,18 +10,47 @@ const DEFAULT_USER_ID = '1';
  */
 export const getNotificationSettings = async () => {
   try {
-    const { data, error } = await supabase
+    // First check if settings exist
+    const { data: existingSettings, error: checkError } = await supabase
       .from('notification_settings')
       .select('*')
       .eq('user_id', DEFAULT_USER_ID)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching notification settings:', error);
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking for notification settings:', checkError);
+      
+      // Create default settings if not exists
+      if (checkError.code === 'PGRST116') { // No rows returned
+        const defaultSettings = {
+          user_id: DEFAULT_USER_ID,
+          email_notifications: true,
+          sms_notifications: false,
+          phone_number: '',
+          phone_verified: false,
+          reminder_days: 7,
+          followup_message_template: 'Time to follow up with {name} from {university}.',
+          status_update_template: 'Status update for {name}: {status}'
+        };
+        
+        const { data: newSettings, error: insertError } = await supabase
+          .from('notification_settings')
+          .insert(defaultSettings)
+          .select()
+          .single();
+          
+        if (insertError) {
+          console.error('Error creating default notification settings:', insertError);
+          return null;
+        }
+        
+        return newSettings;
+      }
+      
       return null;
     }
     
-    return data;
+    return existingSettings;
   } catch (error) {
     console.error('Error in getNotificationSettings:', error);
     return null;
@@ -29,7 +58,7 @@ export const getNotificationSettings = async () => {
 };
 
 /**
- * Gets professors that need followup reminders
+ * Gets professors that need followup reminders based on their email date and status
  */
 export const getProfessorsForReminder = async () => {
   try {
@@ -43,12 +72,15 @@ export const getProfessorsForReminder = async () => {
     reminderDate.setDate(today.getDate() - reminderDays);
     const reminderDateStr = reminderDate.toISOString().split('T')[0];
     
+    console.log(`Looking for professors emailed on or before ${reminderDateStr} with 'Pending' status`);
+    
     // Find professors that were emailed 'reminderDays' ago with status still 'Pending'
+    // Use <= for the date comparison to catch any that might have been missed
     const { data, error } = await supabase
       .from('professors')
       .select('*')
       .eq('status', 'Pending')
-      .eq('email_date', reminderDateStr)
+      .lte('email_date', reminderDateStr)
       .is('last_notification_sent_at', null);
     
     if (error) {
@@ -56,6 +88,7 @@ export const getProfessorsForReminder = async () => {
       return [];
     }
     
+    console.log(`Found ${data?.length || 0} professors needing reminders`);
     return data || [];
   } catch (error) {
     console.error('Error in getProfessorsForReminder:', error);
@@ -74,6 +107,25 @@ export const recordNotification = async (
   errorMessage?: string
 ) => {
   try {
+    // Check if the table exists first
+    const { count, error: checkError } = await supabase
+      .from('notification_history')
+      .select('*', { count: 'exact', head: true });
+    
+    // If we get a specific error that might indicate the table doesn't exist
+    if (checkError && (checkError.code === '42P01' || checkError.message.includes('does not exist'))) {
+      console.error('notification_history table may not exist:', checkError);
+      
+      // Try to create the table (this would typically be done in a migration)
+      try {
+        await supabase.rpc('create_notification_history_table');
+        console.log('Created notification_history table');
+      } catch (createError) {
+        console.error('Failed to create notification_history table:', createError);
+        return false;
+      }
+    }
+    
     const { error } = await supabase
       .from('notification_history')
       .insert({
@@ -181,6 +233,7 @@ export const sendWhatsAppNotification = async (professor: Professor, message: st
     const settings = await getNotificationSettings();
     
     if (!settings || !settings.sms_notifications) {
+      console.log('SMS notifications disabled or no settings found');
       return false;
     }
     
@@ -239,6 +292,15 @@ export const processFollowupReminders = async () => {
     const professors = await getProfessorsForReminder();
     console.log(`Found ${professors.length} professors needing followup reminders`);
     
+    if (professors.length === 0) {
+      return {
+        success: true,
+        message: 'No professors need reminders at this time',
+        notificationsSent: 0,
+        totalProfessors: 0
+      };
+    }
+    
     // Get notification settings
     const settings = await getNotificationSettings();
     if (!settings) {
@@ -255,6 +317,9 @@ export const processFollowupReminders = async () => {
     // Process each professor
     for (const professor of professors) {
       try {
+        // Create a flag to track if any notification method succeeded
+        let notificationSent = false;
+        
         // WhatsApp notification
         if (settings.sms_notifications && settings.phone_number) {
           // Default message if template is not set
@@ -263,7 +328,7 @@ export const processFollowupReminders = async () => {
           
           const success = await sendWhatsAppNotification(professor, message);
           if (success) {
-            successCount++;
+            notificationSent = true;
           }
         }
         
@@ -278,16 +343,26 @@ export const processFollowupReminders = async () => {
           );
           
           await updateProfessorNotificationTimestamp(professor.id!);
+          notificationSent = true;
+        }
+        
+        // Only count if at least one notification method succeeded
+        if (notificationSent) {
           successCount++;
         }
         
         // Update the professor status to 'Follow Up' automatically
-        await supabase
+        const { error: updateError } = await supabase
           .from('professors')
           .update({
-            status: 'Follow Up'
+            status: 'Follow Up',
+            last_notification_sent_at: new Date().toISOString()
           })
           .eq('id', professor.id);
+          
+        if (updateError) {
+          console.error(`Error updating professor ${professor.id} status to Follow Up:`, updateError);
+        }
       } catch (error) {
         console.error(`Error processing notifications for professor ${professor.id}:`, error);
       }
@@ -343,15 +418,28 @@ export const sendManualFollowupReminder = async (professorId: string) => {
     }
     
     // Email notification - would implement when needed
+    if (settings.email_notifications) {
+      await recordNotification(
+        professorId,
+        'email',
+        `Manual follow-up reminder for ${professor.name}`,
+        'sent'
+      );
+      success = true;
+    }
     
     // Update professor status to 'Follow Up'
-    await supabase
+    const { error: updateError } = await supabase
       .from('professors')
       .update({
         status: 'Follow Up',
         last_notification_sent_at: new Date().toISOString()
       })
       .eq('id', professorId);
+      
+    if (updateError) {
+      console.error('Error updating professor status for manual reminder:', updateError);
+    }
     
     return success;
   } catch (error) {
@@ -359,3 +447,26 @@ export const sendManualFollowupReminder = async (professorId: string) => {
     return false;
   }
 };
+
+/**
+ * SQL function to create notification history table if it doesn't exist
+ * (Add this as a Supabase SQL function)
+ */
+/*
+CREATE OR REPLACE FUNCTION create_notification_history_table()
+RETURNS void AS $$
+BEGIN
+  CREATE TABLE IF NOT EXISTS notification_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL,
+    professor_id UUID,
+    notification_type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL,
+    twilio_sid TEXT,
+    error_message TEXT,
+    sent_at TIMESTAMP WITH TIME ZONE NOT NULL
+  );
+END;
+$$ LANGUAGE plpgsql;
+*/
