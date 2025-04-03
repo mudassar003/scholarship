@@ -11,7 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export const verifySupabaseConnection = async (): Promise<boolean> => {
   try {
     // Attempt to query a simple table to verify connection
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('professors')
       .select('count')
       .limit(1);
@@ -72,9 +72,9 @@ export const uploadFile = async (
       }
       
       // Get public URL from the second attempt
-      const { data } = supabase.storage.from('scholarships').getPublicUrl(filePath);
-      console.log('File uploaded to alternate bucket, public URL:', data.publicUrl);
-      return data.publicUrl;
+      const { data: secondData } = supabase.storage.from('scholarships').getPublicUrl(filePath);
+      console.log('File uploaded to alternate bucket, public URL:', secondData.publicUrl);
+      return secondData.publicUrl;
     }
 
     // Get public URL

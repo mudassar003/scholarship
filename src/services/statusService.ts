@@ -1,6 +1,7 @@
 // src/services/statusService.ts
 import { supabase } from '@/lib/supabase';
 import { getNotificationSettings } from './notificationService';
+import { Professor } from '@/types';
 
 /**
  * Updates the status of a professor
@@ -21,7 +22,7 @@ export const updateProfessorStatus = async (
     const today = new Date().toISOString().split('T')[0];
     
     // Prepare update data
-    const updateData: Record<string, any> = {
+    const updateData: Partial<Professor> = {
       status: newStatus,
       updated_at: new Date().toISOString()
     };
@@ -96,7 +97,7 @@ export const updateProfessorDetails = async (
 ): Promise<boolean> => {
   try {
     // Prepare update data
-    const updateData: Record<string, any> = {
+    const updateData: Partial<Professor> = {
       status: updates.status,
       updated_at: new Date().toISOString()
     };
@@ -138,7 +139,7 @@ export const updateProfessorDetails = async (
  * Gets all professors with upcoming reminders
  * @returns Array of professors with reminder dates coming up
  */
-export const getProfessorsWithUpcomingReminders = async () => {
+export const getProfessorsWithUpcomingReminders = async (): Promise<Professor[]> => {
   try {
     const today = new Date().toISOString().split('T')[0];
     

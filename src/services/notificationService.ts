@@ -1,5 +1,6 @@
 // src/services/notificationService.ts
 import { supabase } from '@/lib/supabase';
+import { Professor } from '@/types';
 
 // Default user ID - in a real app with authentication, this would come from the auth context
 const DEFAULT_USER_ID = '1';
@@ -174,7 +175,7 @@ export const setReminderDateForStatus = async (professorId: string, status: stri
  * Sends a WhatsApp notification via Twilio
  * This is a placeholder - implement with actual Twilio SDK when ready
  */
-export const sendWhatsAppNotification = async (professor: any, message: string) => {
+export const sendWhatsAppNotification = async (professor: Professor, message: string) => {
   try {
     // Get notification settings
     const settings = await getNotificationSettings();
@@ -200,14 +201,14 @@ export const sendWhatsAppNotification = async (professor: any, message: string) 
     
     // Record the notification
     await recordNotification(
-      professor.id,
+      professor.id!,
       'whatsapp',
       formattedMessage,
       'sent'
     );
     
     // Update timestamp
-    await updateProfessorNotificationTimestamp(professor.id);
+    await updateProfessorNotificationTimestamp(professor.id!);
     
     return true;
   } catch (error) {
@@ -220,7 +221,7 @@ export const sendWhatsAppNotification = async (professor: any, message: string) 
         'whatsapp',
         'Failed to send WhatsApp notification',
         'failed',
-        error.message
+        error instanceof Error ? error.message : String(error)
       );
     }
     
@@ -270,13 +271,13 @@ export const processFollowupReminders = async () => {
         // For now, just record it
         if (settings.email_notifications) {
           await recordNotification(
-            professor.id,
+            professor.id!,
             'email',
             `Follow-up reminder for ${professor.name}`,
             'sent'
           );
           
-          await updateProfessorNotificationTimestamp(professor.id);
+          await updateProfessorNotificationTimestamp(professor.id!);
           successCount++;
         }
         
@@ -301,7 +302,7 @@ export const processFollowupReminders = async () => {
     console.error('Error processing reminders:', error);
     return {
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
   }
 };

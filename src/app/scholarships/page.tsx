@@ -12,6 +12,15 @@ import ScholarshipFormModal from './components/ScholarshipFormModal';
 import DeleteConfirmationModal from '@/app/professors/components/DeleteConfirmationModal';
 import SearchAndFilter from '@/components/SearchAndFilter';
 
+// Define the form data interface to replace 'any'
+interface ScholarshipFormData {
+  name: string;
+  country: string;
+  description?: string;
+  deadline?: string;
+  website?: string;
+}
+
 export default function ScholarshipsPage() {
   const [scholarships, setScholarships] = useState<Scholarship[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
@@ -102,7 +111,7 @@ export default function ScholarshipsPage() {
     }
   };
 
-  const handleFormSubmit = async (formData: any) => {
+  const handleFormSubmit = async (formData: ScholarshipFormData) => {
     setIsLoading(true);
     
     try {

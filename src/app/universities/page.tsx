@@ -1,3 +1,4 @@
+//src/app/universities/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -10,6 +11,14 @@ import UniversityListView from './components/UniversityListView';
 import UniversityFormModal from './components/UniversityFormModal';
 import DeleteConfirmationModal from '@/app/professors/components/DeleteConfirmationModal';
 import SearchAndFilter from '@/components/SearchAndFilter';
+
+// Define the interface for the form data
+interface UniversityFormData {
+  name: string;
+  country: string;
+  city?: string;
+  website?: string;
+}
 
 export default function UniversitiesPage() {
   const [universities, setUniversities] = useState<University[]>([]);
@@ -89,7 +98,7 @@ export default function UniversitiesPage() {
     }
   };
 
-  const handleFormSubmit = async (formData: any) => {
+  const handleFormSubmit = async (formData: UniversityFormData) => {
     setIsLoading(true);
     
     try {

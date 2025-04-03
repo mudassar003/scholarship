@@ -3,7 +3,7 @@
 
 import React from 'react';
 import ActionButton from './ActionButton';
-import { Edit2, Trash2, Eye, FileText, Mail } from 'lucide-react';
+import { Edit2, Trash2, FileText, Mail } from 'lucide-react';
 
 interface ActionButtonsGroupProps {
   onEdit?: () => void;

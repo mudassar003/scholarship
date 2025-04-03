@@ -9,6 +9,7 @@ export interface Professor {
   lab?: string;
   department?: string;
   research?: string;
+  scholarship?: string;   // Added explicit scholarship field
   status?: string;
   email_date?: string | null;
   reply_date?: string | null;

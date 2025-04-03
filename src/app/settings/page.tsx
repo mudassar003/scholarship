@@ -1,6 +1,7 @@
+//src/app/settings/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Save, Bell, Mail, Phone } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -21,11 +22,7 @@ export default function SettingsPage() {
     status_update_template: 'Professor {name} from {university} has a status update: {status}'
   });
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     setIsLoading(true);
     try {
       // Try to get existing settings
@@ -55,7 +52,11 @@ export default function SettingsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [settings]); // Include settings in dependencies
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   const saveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,7 +168,7 @@ export default function SettingsPage() {
                       type="checkbox"
                       className="sr-only peer"
                       checked={settings.email_notifications}
-                      onChange={(e) => setSettings({...settings, email_notifications: e.target.checked})}
+                      onChange={(e) => setSettings(prev => ({...prev, email_notifications: e.target.checked}))}
                     />
                     <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>
@@ -187,7 +188,7 @@ export default function SettingsPage() {
                       type="checkbox"
                       className="sr-only peer"
                       checked={settings.sms_notifications}
-                      onChange={(e) => setSettings({...settings, sms_notifications: e.target.checked})}
+                      onChange={(e) => setSettings(prev => ({...prev, sms_notifications: e.target.checked}))}
                     />
                     <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>
@@ -202,7 +203,7 @@ export default function SettingsPage() {
                     type="tel"
                     id="phone_number"
                     value={settings.phone_number}
-                    onChange={(e) => setSettings({...settings, phone_number: e.target.value})}
+                    onChange={(e) => setSettings(prev => ({...prev, phone_number: e.target.value}))}
                     className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                     placeholder="+1234567890"
                     disabled={!settings.sms_notifications}
@@ -226,7 +227,7 @@ export default function SettingsPage() {
                   <select
                     id="reminder_days"
                     value={settings.reminder_days}
-                    onChange={(e) => setSettings({...settings, reminder_days: parseInt(e.target.value)})}
+                    onChange={(e) => setSettings(prev => ({...prev, reminder_days: parseInt(e.target.value)}))}
                     className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                   >
                     <option value="3">3 days</option>
@@ -248,7 +249,7 @@ export default function SettingsPage() {
                   <textarea
                     id="followup_template"
                     value={settings.followup_message_template}
-                    onChange={(e) => setSettings({...settings, followup_message_template: e.target.value})}
+                    onChange={(e) => setSettings(prev => ({...prev, followup_message_template: e.target.value}))}
                     className="w-full border border-neutral-300 rounded-lg px-4 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                     placeholder="Template for follow-up messages"
                   />

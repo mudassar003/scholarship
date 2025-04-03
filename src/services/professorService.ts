@@ -38,7 +38,7 @@ export const createProfessor = async (
 ): Promise<Professor | null> => {
   try {
     // Prepare the data to insert - only the essential fields
-    const professorData: any = {
+    const professorData: Partial<Professor> = {
       name: professor.name,
       email: professor.email
     };
@@ -50,6 +50,7 @@ export const createProfessor = async (
     if (professor.lab) professorData.lab = professor.lab;
     if (professor.department) professorData.department = professor.department;
     if (professor.research) professorData.research = professor.research;
+    if (professor.scholarship) professorData.scholarship = professor.scholarship;
     if (professor.status) professorData.status = professor.status;
     if (professor.email_date) professorData.email_date = professor.email_date;
     if (professor.reply_date) professorData.reply_date = professor.reply_date;
@@ -112,8 +113,6 @@ export const updateProfessor = async (
       return null;
     }
 
-    const updateData: any = { ...updates };
-
     // Upload new files if provided
     if (emailScreenshot) {
       // Delete old file if exists
@@ -123,7 +122,7 @@ export const updateProfessor = async (
       
       const emailScreenshotUrl = await uploadFile('professors', 'email_screenshots', emailScreenshot);
       if (emailScreenshotUrl) {
-        updateData.email_screenshot = { url: emailScreenshotUrl };
+        updates.email_screenshot = { url: emailScreenshotUrl };
       }
     }
     
@@ -135,14 +134,14 @@ export const updateProfessor = async (
       
       const proposalPdfUrl = await uploadFile('professors', 'proposals', proposalPdf);
       if (proposalPdfUrl) {
-        updateData.proposal = { url: proposalPdfUrl };
+        updates.proposal = { url: proposalPdfUrl };
       }
     }
     
     // Update professor record
     const { data, error } = await supabase
       .from('professors')
-      .update(updateData)
+      .update(updates)
       .eq('id', id)
       .select()
       .single();

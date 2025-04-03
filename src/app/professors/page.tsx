@@ -101,6 +101,9 @@ export default function ProfessorsPage() {
         if (formData.reminderDate) updateData.reminder_date = formData.reminderDate;
         if (formData.research) updateData.research = formData.research;
         
+        // Save the scholarship to the scholarship column
+        if (formData.scholarship) updateData.scholarship = formData.scholarship;
+        
         const updatedProfessor = await updateProfessor(
           currentProfessor.id,
           updateData,
@@ -130,6 +133,9 @@ export default function ProfessorsPage() {
         if (formData.replyDate) professorData.reply_date = formData.replyDate;
         if (formData.reminderDate) professorData.reminder_date = formData.reminderDate;
         if (formData.research) professorData.research = formData.research;
+        
+        // Save the scholarship to the scholarship column
+        if (formData.scholarship) professorData.scholarship = formData.scholarship;
         
         const newProfessor = await createProfessor(
           professorData as Omit<Professor, 'id' | 'created_at' | 'updated_at'>,
