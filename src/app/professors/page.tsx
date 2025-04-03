@@ -85,7 +85,7 @@ export default function ProfessorsPage() {
     try {
       if (currentProfessor?.id) {
         // Update existing professor (only pass non-empty values)
-        const updateData: any = {
+        const updateData: Partial<Professor> = {
           name: formData.name,
           email: formData.email
         };
@@ -99,6 +99,7 @@ export default function ProfessorsPage() {
         if (formData.emailDate) updateData.email_date = formData.emailDate;
         if (formData.replyDate) updateData.reply_date = formData.replyDate;
         if (formData.reminderDate) updateData.reminder_date = formData.reminderDate;
+        if (formData.research) updateData.research = formData.research;
         
         const updatedProfessor = await updateProfessor(
           currentProfessor.id,
@@ -114,7 +115,7 @@ export default function ProfessorsPage() {
         }
       } else {
         // Create new professor (only pass non-empty values)
-        const professorData: any = {
+        const professorData: Partial<Professor> = {
           name: formData.name,
           email: formData.email
         };
@@ -128,9 +129,10 @@ export default function ProfessorsPage() {
         if (formData.emailDate) professorData.email_date = formData.emailDate;
         if (formData.replyDate) professorData.reply_date = formData.replyDate;
         if (formData.reminderDate) professorData.reminder_date = formData.reminderDate;
+        if (formData.research) professorData.research = formData.research;
         
         const newProfessor = await createProfessor(
-          professorData,
+          professorData as Omit<Professor, 'id' | 'created_at' | 'updated_at'>,
           formData.emailScreenshot,
           formData.proposalPdf
         );

@@ -21,6 +21,7 @@ export interface ProfessorFormData {
   university: string;
   country: string;
   department?: string;
+  research?: string;
   notes?: string;
   status?: string;
   emailDate?: string;
@@ -28,6 +29,7 @@ export interface ProfessorFormData {
   reminderDate?: string;
   emailScreenshot: File | null;
   proposalPdf: File | null;
+  selectedScholarship?: string;
 }
 
 const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
@@ -52,6 +54,7 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
     university: '',
     country: '',
     department: '',
+    research: '',
     notes: '',
     status: 'Pending',
     emailDate: new Date().toISOString().split('T')[0],
@@ -59,6 +62,7 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
     reminderDate: '',
     emailScreenshot: null,
     proposalPdf: null,
+    selectedScholarship: '',
   });
 
   useEffect(() => {
@@ -69,6 +73,7 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
         university: professor.university_name || '',
         country: professor.country || '',
         department: professor.department || '',
+        research: professor.research || '',
         notes: professor.notes || '',
         status: professor.status || 'Pending',
         emailDate: professor.email_date || new Date().toISOString().split('T')[0],
@@ -76,6 +81,7 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
         reminderDate: professor.reminder_date || '',
         emailScreenshot: null,
         proposalPdf: null,
+        selectedScholarship: professor.research || '',
       });
       
       // Set preview URLs if files exist
@@ -94,6 +100,7 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
         university: '',
         country: '',
         department: '',
+        research: '',
         notes: '',
         status: 'Pending',
         emailDate: new Date().toISOString().split('T')[0],
@@ -101,6 +108,7 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
         reminderDate: '',
         emailScreenshot: null,
         proposalPdf: null,
+        selectedScholarship: '',
       });
       
       // Clear previews
@@ -133,7 +141,14 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Set the research field based on the selected scholarship
+    const updatedFormData = {
+      ...formData,
+      research: formData.selectedScholarship,
+    };
+    
+    onSubmit(updatedFormData);
   };
 
   const viewPreview = (previewUrl: string | null) => {
@@ -260,6 +275,29 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
             </select>
           </div>
 
+          {/* Scholarship Selection - New Field */}
+          <div>
+            <label htmlFor="scholarship" className="block text-sm font-medium text-neutral-700 mb-1">
+              Scholarship
+            </label>
+            <select
+              id="scholarship"
+              value={formData.selectedScholarship}
+              onChange={(e) => setFormData({...formData, selectedScholarship: e.target.value})}
+              className="w-full border border-neutral-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            >
+              <option value="">Select a scholarship</option>
+              {scholarships.map(scholarship => (
+                <option key={scholarship.id} value={scholarship.name}>
+                  {scholarship.name}{scholarship.deadline ? ` (Deadline: ${new Date(scholarship.deadline).toLocaleDateString()})` : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-neutral-500 mt-1">
+              Scholarship the professor is associated with
+            </p>
+          </div>
+
           <div>
             <label htmlFor="status" className="block text-sm font-medium text-neutral-700 mb-1">
               Status
@@ -274,6 +312,9 @@ const ProfessorFormModal: React.FC<ProfessorFormModalProps> = ({
               <option value="Pending">Pending</option>
               <option value="Replied">Replied</option>
               <option value="Rejected">Rejected</option>
+              <option value="Follow Up">Follow Up</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="No Response">No Response</option>
             </select>
           </div>
 

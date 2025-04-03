@@ -49,7 +49,7 @@ const ProfessorListView: React.FC<ProfessorListViewProps> = ({ professors, onEdi
       {/* List Items */}
       {professors.length === 0 ? (
         <div className="px-6 py-10 text-center text-neutral-500">
-          No professors found. Click "Add Professor" to get started.
+          No professors found. Click &ldquo;Add Professor&rdquo; to get started.
         </div>
       ) : (
         professors.map((professor) => (
