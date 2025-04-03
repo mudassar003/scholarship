@@ -1,6 +1,5 @@
 // src/services/statusService.ts
 import { supabase } from '@/lib/supabase';
-import { getNotificationSettings } from './notificationService';
 import { Professor } from '@/types';
 
 /**
@@ -14,9 +13,8 @@ export const updateProfessorStatus = async (
   newStatus: string
 ): Promise<boolean> => {
   try {
-    // Get notification settings for default reminder days
-    const settings = await getNotificationSettings();
-    const defaultReminderDays = settings?.reminder_days || 7;
+    // Set default reminder days
+    const defaultReminderDays = 7;
     
     // Get the current date for updates
     const today = new Date().toISOString().split('T')[0];
