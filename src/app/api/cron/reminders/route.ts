@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
     
     console.log('Reminder processing complete:', result);
     
+    // Return the response with timestamp and the result data
     return NextResponse.json({ 
-      success: true, 
       timestamp: new Date().toISOString(),
       ...result 
     });
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       success: false, 
       timestamp: new Date().toISOString(),
-      error: error.message || 'An error occurred while processing reminders'
+      error: error instanceof Error ? error.message : 'An error occurred while processing reminders'
     }, { status: 500 });
   }
 }
