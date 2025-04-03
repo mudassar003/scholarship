@@ -1,3 +1,4 @@
+//src/app/countries/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -9,6 +10,13 @@ import CountryListView from './components/CountryListView';
 import CountryFormModal from './components/CountryFormModal';
 import DeleteConfirmationModal from '@/app/professors/components/DeleteConfirmationModal';
 import SearchAndFilter from '@/components/SearchAndFilter';
+
+// Define the shape of the form data
+interface CountryFormData {
+  name: string;
+  code: string;
+  flag?: string;
+}
 
 export default function CountriesPage() {
   const [countries, setCountries] = useState<Country[]>([]);
@@ -80,7 +88,7 @@ export default function CountriesPage() {
     }
   };
 
-  const handleFormSubmit = async (formData: any) => {
+  const handleFormSubmit = async (formData: CountryFormData) => {
     setIsLoading(true);
     
     try {
